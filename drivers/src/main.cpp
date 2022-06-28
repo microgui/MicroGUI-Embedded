@@ -9,12 +9,6 @@ void setup(void)
   Serial.begin(115200); /* prepare for possible serial debug */
 
   mgui_init(json);
-
-  lv_obj_t * hej;
-
-  MGUI_event test_event(hej, 5);
-
-  Serial.println(test_event.getState());
 }
 
 void loop()
