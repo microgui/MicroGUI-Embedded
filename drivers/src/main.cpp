@@ -8,12 +8,16 @@ void setup(void)
 {
   Serial.begin(115200); /* prepare for possible serial debug */
 
-  mgui_init();
-  mgui_render(json);
+  mgui_init(json);
+
+  lv_obj_t * hej;
+
+  MGUI_event test_event(hej, 5);
+
+  Serial.println(test_event.getState());
 }
 
 void loop()
 {
-  lv_timer_handler(); /* let the GUI do its work */
-  delay(5);
+  mgui_run();
 }

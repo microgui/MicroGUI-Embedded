@@ -18,12 +18,14 @@
 
 #include <LovyanGFX.hpp> // main library
 
-
 #include <lvgl.h>
 #include "lv_conf.h"
 
 #include <ArduinoJson.h>
 #include <ArduinoJson.hpp>
+
+#include <string.h>
+
 
 static LGFX lcd; // declare display variable
 
@@ -34,6 +36,7 @@ static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf[screenWidth * 10];
 
 // Make the storing of widgets dynamic instead of static like this
+// Läs in antal av varje här också och skapa listorna utifrån resultat
 lv_obj_t * buttons[16];
 short numButtons = 0;
 
@@ -50,76 +53,88 @@ lv_obj_t * checkboxes[16];
 short numCheckboxes = 0;
 
 
-void mgui_init() {
-    lcd.init(); // Initialize LovyanGFX
-    lv_init();  // Initialize lvgl
-
-    // Setting display to landscape
-    if (lcd.width() < lcd.height())
-        lcd.setRotation(lcd.getRotation() ^ 1);
-
-    /* LVGL : Setting up buffer to use for display */
-    lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 10);
-
-    /*** LVGL : Setup & Initialize the display device driver ***/
-    static lv_disp_drv_t disp_drv;
-    lv_disp_drv_init(&disp_drv);
-    disp_drv.hor_res = screenWidth;
-    disp_drv.ver_res = screenHeight;
-    disp_drv.flush_cb = display_flush;
-    disp_drv.draw_buf = &draw_buf;
-    lv_disp_drv_register(&disp_drv);
-
-    /*** LVGL : Setup & Initialize the input device driver ***/
-    static lv_indev_drv_t indev_drv;
-    lv_indev_drv_init(&indev_drv);
-    indev_drv.type = LV_INDEV_TYPE_POINTER;
-    indev_drv.read_cb = touchpad_read;
-    lv_indev_drv_register(&indev_drv);
+MGUI_event::MGUI_event(lv_obj_t * obj, int val) {
+  object = obj;
+  value = val;
 }
 
-static void button1(lv_event_t * e) {
+MGUI_event::MGUI_event(lv_obj_t * obj) {
+  object = obj;
+  value = 0;
+}
+
+lv_obj_t* MGUI_event::getObject() {
+  return object;
+}
+
+char* MGUI_event::getName() {
+  return (char*)lv_obj_get_user_data(object);
+}
+
+bool MGUI_event::getState() {
+  return value;
+}
+
+int MGUI_event::getValue() {
+  return value;
+}
+
+
+void mgui_init(char json[]) {
+  lcd.init(); // Initialize LovyanGFX
+  lv_init();  // Initialize lvgl
+
+  // Setting display to landscape
+  if (lcd.width() < lcd.height())
+      lcd.setRotation(lcd.getRotation() ^ 1);
+
+  /* LVGL : Setting up buffer to use for display */
+  lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 10);
+
+  /*** LVGL : Setup & Initialize the display device driver ***/
+  static lv_disp_drv_t disp_drv;
+  lv_disp_drv_init(&disp_drv);
+  disp_drv.hor_res = screenWidth;
+  disp_drv.ver_res = screenHeight;
+  disp_drv.flush_cb = display_flush;
+  disp_drv.draw_buf = &draw_buf;
+  lv_disp_drv_register(&disp_drv);
+
+  /*** LVGL : Setup & Initialize the input device driver ***/
+  static lv_indev_drv_t indev_drv;
+  lv_indev_drv_init(&indev_drv);
+  indev_drv.type = LV_INDEV_TYPE_POINTER;
+  indev_drv.read_cb = touchpad_read;
+  lv_indev_drv_register(&indev_drv);
+
+  mgui_render(json);
+}
+
+// Returnera ett event, gör egen klass
+void mgui_run() {
+  lv_timer_handler(); /* let the GUI do its work */
+}
+
+
+static void lvgl_event(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
-  //lv_obj_t *btn = lv_event_get_target(e);
-  if (code == LV_EVENT_CLICKED)
-  {
-    if (lv_event_get_target(e) == buttons[0]) {
-        Serial.println("Button1 clicked");
+  lv_obj_t * object = lv_event_get_target(e);
+  if (code == LV_EVENT_CLICKED) {
+    MGUI_event test(object);
+    Serial.println(test.getName());
+    Serial.println(test.getValue());
+    /*
+    if (lv_event_get_target(e) == buttons[1]) {
+        Serial.println((char*)lv_event_get_user_data(e));
+        // Add event to queue
     } else {
         Serial.println("Button2 clicked");
+        // Add event to queue
     }
+    */
   }
-}
-
-static void button2(lv_event_t * e) {
-  lv_event_code_t code = lv_event_get_code(e);
-  //lv_obj_t *btn = lv_event_get_target(e);
-  if (code == LV_EVENT_CLICKED)
-  {
-    Serial.println("Button2 clicked");
+  else if (code == LV_EVENT_VALUE_CHANGED) {
   }
-}
-
-static void no_button_func(lv_event_t * e) {
-  lv_event_code_t code = lv_event_get_code(e);
-  //lv_obj_t *btn = lv_event_get_target(e);
-  if (code == LV_EVENT_CLICKED)
-  {
-    Serial.println("No function defined for this button!");
-  }
-}
-
-fptr find_button_cb(int itemIndex) {
-  // Return 
-  switch(itemIndex) {
-    case 1:
-      return button1;
-    case 2:
-      return button1;
-  }
-
-  // Default function return, if no callback function is defined for 
-  return no_button_func;
 }
 
 
@@ -130,7 +145,7 @@ static void switch1(lv_event_t * e) {
   lv_obj_t * obj = lv_event_get_target(e);
   if(code == LV_EVENT_VALUE_CHANGED) {
       //const char * txt = lv_checkbox_get_text(obj);
-      const char * state = lv_obj_get_state(obj) & LV_STATE_CHECKED ? "On" : "Off";
+      int state = lv_obj_get_state(obj) & LV_STATE_CHECKED ? 1 : 0;
       Serial.println(state);
   }
 }
@@ -257,8 +272,7 @@ fptr find_slider_cb(int itemIndex) {
 
 void mgui_render(char json[])
 {
-  //StaticJsonDocument<5000> doc; //<sizeof json + 400>
-  DynamicJsonDocument doc(8192);
+  DynamicJsonDocument doc(strnlen(json, 100000) + 1000);    // Length of JSON plus some slack
 
   DeserializationError error = deserializeJson(doc, json);
 
@@ -295,7 +309,9 @@ void mgui_render(char json[])
     else if(type.equals("Button")) {
       buttons[numButtons] = lv_btn_create(lv_scr_act());
 
-      lv_obj_add_event_cb(buttons[numButtons], find_button_cb(itemIndex), LV_EVENT_ALL, NULL);
+      lv_obj_set_user_data(buttons[numButtons], (char*)kv.key().c_str());
+
+      lv_obj_add_event_cb(buttons[numButtons], lvgl_event, LV_EVENT_ALL, (char*)kv.key().c_str());
 
       lv_obj_set_pos(buttons[numButtons], root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
       lv_obj_set_height(buttons[numButtons], LV_SIZE_CONTENT);

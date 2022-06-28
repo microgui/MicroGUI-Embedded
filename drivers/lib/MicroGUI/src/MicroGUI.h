@@ -12,20 +12,16 @@
 #ifndef MicroGUI_h
 #define MicroGUI_h
 
-#define LGFX_AUTODETECT // Autodetect board
-#define LGFX_USE_V1     // set to use new version of library
-
-#include <LovyanGFX.hpp> // main library
-
-
 #include <lvgl.h>
 #include "lv_conf.h"
 
 #include <ArduinoJson.h>
 #include <ArduinoJson.hpp>
 
-void mgui_init(void);
+void mgui_init(char json[]);
 void mgui_render(char json[]);
+void mgui_run();
+
 
 /*** Function declaration ***/
 void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
@@ -38,5 +34,19 @@ fptr find_button_cb(char itemIndex);
 fptr find_switch_cb(char itemIndex);
 fptr find_slider_cb(char itemIndex);
 fptr find_checkbox_cb(char itemIndex);
+
+class MGUI_event {
+  private:
+    lv_obj_t * object;
+    int value;
+
+  public:
+    MGUI_event(lv_obj_t * obj, int val);
+    MGUI_event(lv_obj_t * obj);
+    lv_obj_t* getObject();
+    char* getName();
+    bool getState();
+    int getValue();
+};
 
 #endif
