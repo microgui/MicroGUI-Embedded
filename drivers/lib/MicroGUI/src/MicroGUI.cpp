@@ -48,6 +48,11 @@ MGUI_event::MGUI_event(lv_obj_t * obj) {
   value = 0;
 }
 
+MGUI_event::MGUI_event() {
+  object = 0;
+  value = 0;
+}
+
 lv_obj_t* MGUI_event::getObject() {
   return object;
 }
@@ -65,7 +70,9 @@ int MGUI_event::getValue() {
 }
 
 /* Queue for MicroGUI events */
-
+lv_obj_t * default_object;
+MGUI_event latest;
+bool newEvent = false;
 
 
 void mgui_init(char json[]) {
@@ -95,40 +102,48 @@ void mgui_init(char json[]) {
   indev_drv.read_cb = touchpad_read;
   lv_indev_drv_register(&indev_drv);
 
+  default_object = lv_obj_create(lv_scr_act());
+  lv_obj_set_user_data(default_object, (char*)"Default"); 
+
+  latest = MGUI_event(default_object);
+
   mgui_render(json);
 }
 
 // Returnera ett event
-void mgui_run() {
-  lv_timer_handler();   /* let the GUI do its work */
+MGUI_event mgui_run() {
+  lv_timer_handler();     // Let the GUI do its work 
+
+  if(newEvent) {          // Only return new events
+    newEvent = false;
+    return latest;
+  }
+  else {
+    return MGUI_event(default_object);
+  }
 }
 
-
+// Callback function for all widget actions on the display, turn them into MGUI events
 static void widget_cb(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * object = lv_event_get_target(e);
+
   if (code == LV_EVENT_CLICKED) {
-    MGUI_event event(object);
-    Serial.println(event.getName());
-    Serial.println(event.getValue());
+    latest = MGUI_event(object);
   }
   else if (code == LV_EVENT_VALUE_CHANGED) {
     if(lv_obj_check_type(object, &lv_slider_class)) {
-      MGUI_event event(object, lv_slider_get_value(object));
-      Serial.println(event.getName());
-      Serial.println(event.getValue());
+      latest = MGUI_event(object, lv_slider_get_value(object));
     } 
     else if (lv_obj_check_type(object, &lv_switch_class) || lv_obj_check_type(object, &lv_checkbox_class)) {
-      MGUI_event event(object, (int)lv_obj_get_state(object) & LV_STATE_CHECKED ? 1 : 0);
-      Serial.println(event.getName());
-      Serial.println(event.getValue());
+      latest = MGUI_event(object, (int)lv_obj_get_state(object) & LV_STATE_CHECKED ? 1 : 0);
     }
   }
+  newEvent = true;
 }
 
-
-void mgui_render(char json[])
-{
+// Render MicroGUI from json
+void mgui_render(char json[]) {
   DynamicJsonDocument doc(strnlen(json, 100000) + 1000);    // Length of JSON plus some slack
 
   DeserializationError error = deserializeJson(doc, json);
@@ -150,8 +165,7 @@ void mgui_render(char json[])
 
     // If object is the Canvas, i.e background
     if(type.equals("CanvasArea")) {
-      lv_obj_t *square;
-      square = lv_obj_create(lv_scr_act());
+      lv_obj_t *square = lv_obj_create(lv_scr_act());
       lv_obj_set_size(square, screenWidth, screenHeight);
       lv_obj_align(square, LV_ALIGN_CENTER, 0, 0);
       lv_obj_set_style_bg_color(square, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);

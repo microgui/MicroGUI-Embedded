@@ -13,5 +13,9 @@ void setup(void)
 
 void loop()
 {
-  mgui_run();
+  MGUI_event latest = mgui_run();
+  Serial.println(latest.getName());
+  Serial.println(latest.getValue());
+
+  delay(100);
 }

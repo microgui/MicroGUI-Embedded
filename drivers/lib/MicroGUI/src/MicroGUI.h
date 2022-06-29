@@ -20,7 +20,6 @@
 
 void mgui_init(char json[]);
 void mgui_render(char json[]);
-void mgui_run();
 
 
 /*** Function declaration ***/
@@ -43,10 +42,13 @@ class MGUI_event {
   public:
     MGUI_event(lv_obj_t * obj, int val);
     MGUI_event(lv_obj_t * obj);
+    MGUI_event();
     lv_obj_t* getObject();
     char* getName();
     bool getState();
     int getValue();
 };
+
+MGUI_event mgui_run();
 
 #endif
