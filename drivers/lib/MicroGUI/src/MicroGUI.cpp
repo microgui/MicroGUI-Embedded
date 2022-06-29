@@ -13,10 +13,13 @@
 
 #include "MicroGUI.h"
 
-#define LGFX_AUTODETECT // Autodetect board
-#define LGFX_USE_V1     // set to use new version of library
+#include <LinkedList.h>
 
-#include <LovyanGFX.hpp> // main library
+
+#define LGFX_AUTODETECT // Autodetect board
+#define LGFX_USE_V1
+
+#include <LovyanGFX.hpp>
 
 #include <lvgl.h>
 #include "lv_conf.h"
@@ -30,6 +33,9 @@
 static LGFX lcd; // declare display variable
 
 /*** Setup screen resolution for LVGL ***/
+// screenHeight and screenWidth would need to be 
+// switched for the display to work properly in portrait mode
+// Fix later
 static const uint16_t screenWidth = 480;
 static const uint16_t screenHeight = 320;
 static lv_disp_draw_buf_t draw_buf;
@@ -69,19 +75,29 @@ int MGUI_event::getValue() {
   return value;
 }
 
-/* Queue for MicroGUI events */
+char * MGUI_event::getAction() {
+  return action;
+}
+
+/* Variables/objects for MicroGUI events */
 lv_obj_t * default_object;
 MGUI_event latest;
 bool newEvent = false;
 
+/* Linked lists for storing widget pointers, for later access */
+LinkedList<lv_obj_t*> textfields;
+LinkedList<lv_obj_t*> buttons;
+LinkedList<lv_obj_t*> switches;
+LinkedList<lv_obj_t*> sliders;
+LinkedList<lv_obj_t*> checkboxes;
 
-void mgui_init(char json[]) {
+
+void mgui_init(char json[], int rotation) {
   lcd.init(); // Initialize LovyanGFX
   lv_init();  // Initialize lvgl
 
-  // Setting display to landscape
-  if (lcd.width() < lcd.height())
-    lcd.setRotation(lcd.getRotation() ^ 1);
+  // Setting display rotation
+  lcd.setRotation(lcd.getRotation() ^ rotation % 4);
 
   /* LVGL : Setting up buffer to use for display */
   lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 10);
@@ -179,6 +195,8 @@ void mgui_render(char json[]) {
 
       //Serial.println((int)button);      // Pointer to the created button
 
+      buttons.add(button);
+
       lv_obj_set_user_data(button, (char*)kv.key().c_str());    // Store the name of the widget as user data
 
       lv_obj_add_event_cb(button, widget_cb, LV_EVENT_CLICKED, (char*)kv.key().c_str());
@@ -197,6 +215,8 @@ void mgui_render(char json[]) {
     else if(type.equals("Switch")) {
       lv_obj_t * sw = lv_switch_create(lv_scr_act());
 
+      switches.add(sw);
+
       lv_obj_set_user_data(sw, (char*)kv.key().c_str());    // Store the name of the widget as user data
 
       lv_obj_add_event_cb(sw, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
@@ -212,6 +232,8 @@ void mgui_render(char json[]) {
     else if(type.equals("Slider")) {
       lv_obj_t * slider = lv_slider_create(lv_scr_act());
 
+      sliders.add(slider);
+
       lv_obj_set_user_data(slider, (char*)kv.key().c_str());    // Store the name of the widget as user data
 
       lv_obj_add_event_cb(slider, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
@@ -226,6 +248,8 @@ void mgui_render(char json[]) {
     else if(type.equals("Textfield")) {
       lv_obj_t * textfield = lv_label_create(lv_scr_act());
 
+      textfields.add(textfield);
+
       lv_obj_set_user_data(textfield, (char*)kv.key().c_str());    // Store the name of the widget as user data
 
       lv_obj_set_pos(textfield, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
@@ -236,6 +260,8 @@ void mgui_render(char json[]) {
     // If object is a checkbox
     else if(type.equals("Checkbox")) {
       lv_obj_t * checkbox = lv_checkbox_create(lv_scr_act());
+
+      checkboxes.add(checkbox);
 
       lv_obj_set_user_data(checkbox, (char*)kv.key().c_str());    // Store the name of the widget as user data
 

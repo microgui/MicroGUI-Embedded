@@ -18,7 +18,7 @@
 #include <ArduinoJson.h>
 #include <ArduinoJson.hpp>
 
-void mgui_init(char json[]);
+void mgui_init(char json[], int rotation);
 void mgui_render(char json[]);
 
 
@@ -26,18 +26,12 @@ void mgui_render(char json[]);
 void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
 void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data);
 
-// Custom return type for finding callback function when generating widgets
-typedef void (*fptr)(lv_event_t * e);
-
-fptr find_button_cb(char itemIndex);
-fptr find_switch_cb(char itemIndex);
-fptr find_slider_cb(char itemIndex);
-fptr find_checkbox_cb(char itemIndex);
 
 class MGUI_event {
   private:
     lv_obj_t * object;
     int value;
+    char * action;
 
   public:
     MGUI_event(lv_obj_t * obj, int val);
@@ -47,6 +41,7 @@ class MGUI_event {
     char* getName();
     bool getState();
     int getValue();
+    char * getAction();
 };
 
 MGUI_event mgui_run();

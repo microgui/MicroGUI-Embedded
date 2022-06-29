@@ -8,14 +8,14 @@ void setup(void)
 {
   Serial.begin(115200); /* prepare for possible serial debug */
 
-  mgui_init(json);
+  mgui_init(json, 3);
 }
 
 void loop()
 {
   MGUI_event latest = mgui_run();
-  Serial.println(latest.getName());
-  Serial.println(latest.getValue());
-
-  delay(100);
+  if (latest.getName() != "Default") {
+    Serial.println(latest.getName());
+    Serial.println(latest.getValue());
+  }
 }
