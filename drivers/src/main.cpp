@@ -14,8 +14,10 @@ void setup(void)
 void loop()
 {
   MGUI_event latest = mgui_run();
-  if (latest.getName() != "Default") {
-    Serial.println(latest.getName());
+
+  if (latest.getEvent() != "Default") {
+    Serial.println(latest.getParent());
+    Serial.println(latest.getEvent());
     Serial.println(latest.getValue());
   }
 }
