@@ -8,7 +8,7 @@ void setup(void)
 {
   Serial.begin(115200); /* prepare for possible serial debug */
 
-  mgui_init(json, 3);
+  mgui_init(json, MGUI_LANDSCAPE_FLIPPED);
 }
 
 void loop()

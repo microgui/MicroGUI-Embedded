@@ -31,7 +31,7 @@ class MGUI_object {
     bool getState();
 };
 
-/* New MicroGUI event class */
+/* MicroGUI event class */
 class MGUI_event {
   private:
     const char * event_id;
@@ -48,29 +48,26 @@ class MGUI_event {
     bool getState();
 };
 
-/* MicroGUI event class 
-class MGUI_event {
-  private:
-    lv_obj_t * object;
-    int value;
-    char * action;
-
-  public:
-    MGUI_event(lv_obj_t * obj, int val);
-    MGUI_event(lv_obj_t * obj);
-    MGUI_event();
-    lv_obj_t* getObject();
-    char* getName();
-    bool getState();
-    int getValue();
-    char * getAction();
-};
-*/
+typedef enum {
+  MGUI_PORTRAIT,
+  MGUI_LANDSCAPE,
+  MGUI_PORTRAIT_FLIPPED,
+  MGUI_LANDSCAPE_FLIPPED  
+}MGUI_orientation;
 
 /* MicroGUI functions */
+void mgui_parse(char json[]);
+void mgui_init(char json[]);
 void mgui_init(char json[], int rotation);
 void mgui_render(char json[]);
 MGUI_event mgui_run();
+
+void mgui_render_canvas(JsonPair kv, JsonObject root);
+void mgui_render_button(JsonPair kv, JsonObject root);
+void mgui_render_switch(JsonPair kv, JsonObject root);
+void mgui_render_slider(JsonPair kv, JsonObject root);
+void mgui_render_checkbox(JsonPair kv, JsonObject root);
+void mgui_render_textfield(JsonPair kv, JsonObject root);
 
 /* Display functions */
 void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);

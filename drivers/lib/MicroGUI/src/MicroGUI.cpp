@@ -9,9 +9,7 @@
 #include <Arduino.h>
 
 #include "MicroGUI.h"
-
 #include <LinkedList.h>
-
 
 #define LGFX_AUTODETECT // Autodetect board
 #define LGFX_USE_V1
@@ -33,19 +31,16 @@ static LGFX lcd; // declare display variable
 // screenHeight and screenWidth would need to be 
 // switched for the display to work properly in portrait mode
 // Fix later
-static const uint16_t screenWidth = 480;
-static const uint16_t screenHeight = 320;
+static uint16_t screenWidth;
+static uint16_t screenHeight;
 static lv_disp_draw_buf_t draw_buf;
-static lv_color_t buf[screenWidth * 10];
+static lv_color_t buf[4800 * 1];
 
 
 /* Variables/objects for MicroGUI events */
-MGUI_event default_event("Default", "None", 0);
-
-
-//lv_obj_t * default_object;
-MGUI_event latest;
-bool newEvent = false;
+static MGUI_event default_event("Default", "None", 0);
+static MGUI_event latest;
+static bool newEvent = false;
 
 /* Linked lists for storing object pointers, for later access */
 LinkedList<MGUI_object*> buttons;
@@ -107,12 +102,52 @@ int MGUI_event::getValue() {
 
 
 /* MicroGUI functions */
+
+void mgui_parse(char json[]) {
+  DynamicJsonDocument doc(strnlen(json, 100000) + 1000);    // Length of JSON plus some slack
+
+  DeserializationError error = deserializeJson(doc, (const char*)json);
+  
+  if (error) {
+    // TODO: Render a text telling the user that the deserialization failed
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.f_str());
+    return;
+  }
+
+  JsonObject root = doc.as<JsonObject>();
+
+  screenWidth = root["ROOT"]["props"]["width"];
+  screenHeight = root["ROOT"]["props"]["height"];
+}
+
+void mgui_init(char json[]) {
+  mgui_parse(json);
+
+  if(screenWidth < screenHeight) {
+    mgui_init(json, MGUI_PORTRAIT);
+  } else {
+    mgui_init(json, MGUI_LANDSCAPE);
+  }
+}
+
+/* Initialize display for use with MicroGUI and render GUI */
 void mgui_init(char json[], int rotation) {
+  if(!screenWidth) mgui_parse(json);
+
   lcd.init(); // Initialize LovyanGFX
   lv_init();  // Initialize lvgl
 
   // Setting display rotation
-  lcd.setRotation(lcd.getRotation() ^ rotation % 4);
+  if(rotation % 2 == 1 && screenWidth < screenHeight) {
+    lcd.setRotation(MGUI_PORTRAIT);
+    Serial.println("[MicroGUI]: Aspect ratio of GUI suggests that it was created for portrait mode, landscape mode not possible");
+  } else if(rotation % 2 == 0 && screenWidth > screenHeight) {
+    lcd.setRotation(MGUI_LANDSCAPE);
+    Serial.println("[MicroGUI]: Aspect ratio of GUI suggests that it was created for landscape mode, portrait mode not possible");
+  } else {
+    lcd.setRotation(rotation % 4);
+  }
 
   /* LVGL : Setting up buffer to use for display */
   lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 10);
@@ -136,18 +171,18 @@ void mgui_init(char json[], int rotation) {
   mgui_render(json);
 }
 
-// Returnera ett event
+/* Let the display do its' work, returns an MGUI_event object */
 MGUI_event mgui_run() {
-  lv_timer_handler();     // Let the GUI do its work 
+  lv_timer_handler();
 
-  if(newEvent) {          // Only return new events
+  if(newEvent) {      // Only return new events
     newEvent = false;
     return latest;
   }
   return default_event;
 }
 
-// Callback function for all widget actions on the display, turn them into MGUI events
+/* Callback function for all widget actions on the display, turn them into MGUI events */
 static void widget_cb(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * object = lv_event_get_target(e);
@@ -171,120 +206,7 @@ static void widget_cb(lv_event_t * e) {
   newEvent = true;
 }
 
-void mgui_render_canvas(JsonPair kv, JsonObject root) {
-  lv_obj_t *square = lv_obj_create(lv_scr_act());
-  lv_obj_set_size(square, screenWidth, screenHeight);
-  lv_obj_align(square, LV_ALIGN_CENTER, 0, 0);
-  lv_obj_set_style_bg_color(square, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
-  lv_obj_set_style_border_width(square, 0, 0);
-  lv_obj_set_style_border_width(square, 0, 0);
-  lv_obj_set_style_radius(square, 0, 0);
-}
-
-void mgui_render_button(JsonPair kv, JsonObject root) {
-  // Create LVGL object
-  lv_obj_t * button = lv_btn_create(lv_scr_act());
-
-  // Create MGUI_object for newly created button
-  MGUI_object * m_button = new MGUI_object(button, (char*)kv.key().c_str(), "test");
-
-  // Store MGUI_object pointer in linked list
-  buttons.add(m_button);
-  // Below is how we access MGUI objects later
-  //Serial.println(buttons.get(0)->getParent());
-  //Serial.println(buttons.get(1)->getParent());
-
-  // Store the MGUI object as user data
-  lv_obj_set_user_data(button, m_button);   
-
-  // Add event callback
-  lv_obj_add_event_cb(button, widget_cb, LV_EVENT_CLICKED, NULL);   
-
-  // Styling
-  lv_obj_set_pos(button, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
-  lv_obj_set_height(button, LV_SIZE_CONTENT);
-  lv_obj_set_style_bg_color(button, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
-  
-  // Add label to button
-  lv_obj_t * label = lv_label_create(button);
-  const char* text = root[kv.key()]["props"]["text"];
-  lv_label_set_text(label, text);
-  lv_obj_center(label);
-  lv_obj_set_style_text_color(label, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);   
-}
-
-void mgui_render_switch(JsonPair kv, JsonObject root) {
-  lv_obj_t * sw = lv_switch_create(lv_scr_act());
-
-  MGUI_object * m_switch = new MGUI_object(sw, (char*)kv.key().c_str(), "test");
-
-  switches.add(m_switch);
-
-  lv_obj_set_user_data(sw, m_switch);
-
-  lv_obj_add_event_cb(sw, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
-
-  //lv_obj_add_state(switches[numSwitches], LV_STATE_CHECKED);
-  //lv_obj_add_event_cb(switches[numSwitches], counter_event_handler, LV_EVENT_ALL, NULL);
-  lv_obj_set_pos(sw, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
-  lv_obj_set_style_bg_color(sw, lv_color_make(188, 188, 188), LV_PART_MAIN | LV_STATE_DEFAULT);
-  //lv_obj_set_style_bg_color(switches[numSwitches], lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_KNOB);
-  lv_obj_set_style_bg_color(sw, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR | LV_STATE_CHECKED);
-}
-
-void mgui_render_slider(JsonPair kv, JsonObject root) {
-  lv_obj_t * slider = lv_slider_create(lv_scr_act());
-
-  MGUI_object * m_slider = new MGUI_object(slider, (char*)kv.key().c_str(), "test");
-
-  sliders.add(m_slider);
-
-  lv_obj_set_user_data(slider, m_slider);
-
-  lv_obj_add_event_cb(slider, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
-
-  lv_obj_set_width(slider, root[kv.key()]["props"]["width"]);
-  lv_obj_set_pos(slider, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
-  lv_slider_set_range(slider, root[kv.key()]["props"]["min"], root[kv.key()]["props"]["max"]);
-  lv_obj_set_style_bg_color(slider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR);
-  lv_obj_set_style_bg_color(slider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_KNOB);
-}
-
-void mgui_render_checkbox(JsonPair kv, JsonObject root) {
-  lv_obj_t * checkbox = lv_checkbox_create(lv_scr_act());
-
-  MGUI_object * m_checkbox = new MGUI_object(checkbox, (char*)kv.key().c_str(), "test");
-
-  checkboxes.add(m_checkbox);
-
-  lv_obj_set_user_data(checkbox, m_checkbox);
-
-  lv_obj_add_event_cb(checkbox, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
-  lv_obj_set_pos(checkbox, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
-  lv_checkbox_set_text(checkbox, "");
-  lv_obj_set_style_border_color(checkbox, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR);
-  lv_obj_set_style_bg_color(checkbox, lv_color_make(255, 255, 255), LV_PART_INDICATOR | LV_STATE_DEFAULT);
-  lv_obj_set_style_bg_color(checkbox, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR | LV_STATE_CHECKED);
-}
-
-void mgui_render_textfield(JsonPair kv, JsonObject root) {
-  lv_obj_t * textfield = lv_label_create(lv_scr_act());
-
-  MGUI_object * m_textfield = new MGUI_object(textfield, (char*)kv.key().c_str(), "test");
-
-  textfields.add(m_textfield);
-
-  lv_obj_set_user_data(textfield, m_textfield);
-
-  lv_obj_set_pos(textfield, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
-  const char* text = root[kv.key()]["props"]["text"];
-  lv_label_set_text(textfield, text);
-  lv_obj_set_style_text_color(textfield, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
-}
-
-// TODO: Implement ONE function for generating any object. Pass parameters (JsonPair kv, JsonObject root, LinkedList * ref, lvgl style)
-
-// Render MicroGUI from json
+/* Render MicroGUI from json */
 void mgui_render(char json[]) {
   DynamicJsonDocument doc(strnlen(json, 100000) + 1000);    // Length of JSON plus some slack
 
@@ -331,8 +253,119 @@ void mgui_render(char json[]) {
   }
 }
 
+/* Function for rendering a canvas */
+void mgui_render_canvas(JsonPair kv, JsonObject root) {
+  lv_obj_t *square = lv_obj_create(lv_scr_act());
+  lv_obj_set_size(square, screenWidth, screenHeight);
+  lv_obj_align(square, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_set_style_bg_color(square, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
+  lv_obj_set_style_border_width(square, 0, 0);
+  lv_obj_set_style_border_width(square, 0, 0);
+  lv_obj_set_style_radius(square, 0, 0);
+}
 
-/*** Display callback to flush the buffer to screen ***/
+/* Function for rendering a button */
+void mgui_render_button(JsonPair kv, JsonObject root) {
+  // Create LVGL object
+  lv_obj_t * button = lv_btn_create(lv_scr_act());
+
+  // Create MGUI_object for newly created button
+  MGUI_object * m_button = new MGUI_object(button, (char*)kv.key().c_str(), "test");
+
+  // Store MGUI_object pointer in linked list
+  buttons.add(m_button);
+  // Below is how we access MGUI objects later
+  //Serial.println(buttons.get(0)->getParent());
+  //Serial.println(buttons.get(1)->getParent());
+
+  // Store the MGUI object as user data
+  lv_obj_set_user_data(button, m_button);   
+
+  // Add event callback
+  lv_obj_add_event_cb(button, widget_cb, LV_EVENT_CLICKED, NULL);   
+
+  // Styling
+  lv_obj_set_pos(button, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  lv_obj_set_height(button, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_color(button, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
+  
+  // Add label to button
+  lv_obj_t * label = lv_label_create(button);
+  const char* text = root[kv.key()]["props"]["text"];
+  lv_label_set_text(label, text);
+  lv_obj_center(label);
+  lv_obj_set_style_text_color(label, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);   
+}
+
+/* Function for rendering a switch */
+void mgui_render_switch(JsonPair kv, JsonObject root) {
+  lv_obj_t * sw = lv_switch_create(lv_scr_act());
+  MGUI_object * m_switch = new MGUI_object(sw, (char*)kv.key().c_str(), "test");
+  switches.add(m_switch);
+  lv_obj_set_user_data(sw, m_switch);
+  lv_obj_add_event_cb(sw, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+  // Styling
+  //lv_obj_add_state(switches[numSwitches], LV_STATE_CHECKED);
+  //lv_obj_add_event_cb(switches[numSwitches], counter_event_handler, LV_EVENT_ALL, NULL);
+  lv_obj_set_pos(sw, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  lv_obj_set_style_bg_color(sw, lv_color_make(188, 188, 188), LV_PART_MAIN | LV_STATE_DEFAULT);
+  //lv_obj_set_style_bg_color(switches[numSwitches], lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_KNOB);
+  lv_obj_set_style_bg_color(sw, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR | LV_STATE_CHECKED);
+}
+
+/* Function for rendering a slider */
+void mgui_render_slider(JsonPair kv, JsonObject root) {
+  lv_obj_t * slider = lv_slider_create(lv_scr_act());
+  MGUI_object * m_slider = new MGUI_object(slider, (char*)kv.key().c_str(), "test");
+  sliders.add(m_slider);
+  lv_obj_set_user_data(slider, m_slider);
+  lv_obj_add_event_cb(slider, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+  // Styling
+  lv_obj_set_width(slider, root[kv.key()]["props"]["width"]);
+  lv_obj_set_pos(slider, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  lv_slider_set_range(slider, root[kv.key()]["props"]["min"], root[kv.key()]["props"]["max"]);
+  lv_obj_set_style_bg_color(slider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(slider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_KNOB);
+}
+
+/* Function for rendering a checkbox */
+void mgui_render_checkbox(JsonPair kv, JsonObject root) {
+  lv_obj_t * checkbox = lv_checkbox_create(lv_scr_act());
+  MGUI_object * m_checkbox = new MGUI_object(checkbox, (char*)kv.key().c_str(), "test");
+  checkboxes.add(m_checkbox);
+  lv_obj_set_user_data(checkbox, m_checkbox);
+  lv_obj_add_event_cb(checkbox, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+  // Styling
+  lv_obj_set_pos(checkbox, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  lv_checkbox_set_text(checkbox, "");
+  lv_obj_set_style_border_color(checkbox, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(checkbox, lv_color_make(255, 255, 255), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+  lv_obj_set_style_bg_color(checkbox, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR | LV_STATE_CHECKED);
+}
+
+/* Function for rendering a textfield */
+void mgui_render_textfield(JsonPair kv, JsonObject root) {
+  lv_obj_t * textfield = lv_label_create(lv_scr_act());
+  MGUI_object * m_textfield = new MGUI_object(textfield, (char*)kv.key().c_str(), "test");
+  textfields.add(m_textfield);
+  lv_obj_set_user_data(textfield, m_textfield);
+
+  // Styling
+  lv_obj_set_pos(textfield, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  const char* text = root[kv.key()]["props"]["text"];
+  lv_label_set_text(textfield, text);
+  lv_obj_set_style_text_color(textfield, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
+}
+
+
+
+
+/** Display functions */
+
+/* Display callback to flush the buffer to screen */
 void display_flush(lv_disp_drv_t * disp, const lv_area_t *area, lv_color_t *color_p)
 {
   uint32_t w = (area->x2 - area->x1 + 1);
@@ -346,7 +379,7 @@ void display_flush(lv_disp_drv_t * disp, const lv_area_t *area, lv_color_t *colo
   lv_disp_flush_ready(disp);
 }
 
-/*** Touchpad callback to read the touchpad ***/
+/* Touchpad callback to read the touchpad */
 void touchpad_read(lv_indev_drv_t * indev_driver, lv_indev_data_t * data)
 {
   uint16_t touchX, touchY;
