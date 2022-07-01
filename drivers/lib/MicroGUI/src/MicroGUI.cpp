@@ -47,13 +47,12 @@ MGUI_event default_event("Default", "None", 0);
 MGUI_event latest;
 bool newEvent = false;
 
-/* Linked lists for storing widget pointers, for later access */
-// These should store MGUI_objects instead
-LinkedList<lv_obj_t*> buttons;
-LinkedList<lv_obj_t*> switches;
-LinkedList<lv_obj_t*> sliders;
-LinkedList<lv_obj_t*> checkboxes;
-LinkedList<lv_obj_t*> textfields;
+/* Linked lists for storing object pointers, for later access */
+LinkedList<MGUI_object*> buttons;
+LinkedList<MGUI_object*> switches;
+LinkedList<MGUI_object*> sliders;
+LinkedList<MGUI_object*> checkboxes;
+LinkedList<MGUI_object*> textfields;
 
 
 /* MicroGUI object class functions */
@@ -62,6 +61,10 @@ MGUI_object::MGUI_object(lv_obj_t * obj, const char * obj_name, const char * obj
   object = obj;
   name = obj_name;
   event = obj_event;
+}
+
+lv_obj_t * MGUI_object::getObject() {
+  return object;
 }
 
 const char* MGUI_object::getEvent() {
@@ -141,9 +144,7 @@ MGUI_event mgui_run() {
     newEvent = false;
     return latest;
   }
-  else {
-    return default_event;
-  }
+  return default_event;
 }
 
 // Callback function for all widget actions on the display, turn them into MGUI events
@@ -151,20 +152,17 @@ static void widget_cb(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * object = lv_event_get_target(e);
 
-  if (code == LV_EVENT_CLICKED) {
-    //((MGUI_object*)lv_obj_get_user_data(object))->getEvent();
+  if (code == LV_EVENT_CLICKED) {     // If button
     latest = MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
                         ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 1);
   }
   else if (code == LV_EVENT_VALUE_CHANGED) {
-    if(lv_obj_check_type(object, &lv_slider_class)) {
-      //latest = MGUI_event(object, lv_slider_get_value(object));
+    if(lv_obj_check_type(object, &lv_slider_class)) {     // If slider
       latest = MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
                           ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
                           lv_slider_get_value(object));
     } 
-    else if (lv_obj_check_type(object, &lv_switch_class) || lv_obj_check_type(object, &lv_checkbox_class)) {
-      //latest = MGUI_event(object, (int)lv_obj_get_state(object) & LV_STATE_CHECKED ? 1 : 0);
+    else if (lv_obj_check_type(object, &lv_switch_class) || lv_obj_check_type(object, &lv_checkbox_class)) {    // If switch or checkbox
       latest = MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
                           ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
                           (int)lv_obj_get_state(object) & LV_STATE_CHECKED ? 1 : 0);
@@ -173,13 +171,127 @@ static void widget_cb(lv_event_t * e) {
   newEvent = true;
 }
 
+void mgui_render_canvas(JsonPair kv, JsonObject root) {
+  lv_obj_t *square = lv_obj_create(lv_scr_act());
+  lv_obj_set_size(square, screenWidth, screenHeight);
+  lv_obj_align(square, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_set_style_bg_color(square, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
+  lv_obj_set_style_border_width(square, 0, 0);
+  lv_obj_set_style_border_width(square, 0, 0);
+  lv_obj_set_style_radius(square, 0, 0);
+}
+
+void mgui_render_button(JsonPair kv, JsonObject root) {
+  // Create LVGL object
+  lv_obj_t * button = lv_btn_create(lv_scr_act());
+
+  // Create MGUI_object for newly created button
+  MGUI_object * m_button = new MGUI_object(button, (char*)kv.key().c_str(), "test");
+
+  // Store MGUI_object pointer in linked list
+  buttons.add(m_button);
+  // Below is how we access MGUI objects later
+  //Serial.println(buttons.get(0)->getParent());
+  //Serial.println(buttons.get(1)->getParent());
+
+  // Store the MGUI object as user data
+  lv_obj_set_user_data(button, m_button);   
+
+  // Add event callback
+  lv_obj_add_event_cb(button, widget_cb, LV_EVENT_CLICKED, NULL);   
+
+  // Styling
+  lv_obj_set_pos(button, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  lv_obj_set_height(button, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_color(button, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
+  
+  // Add label to button
+  lv_obj_t * label = lv_label_create(button);
+  const char* text = root[kv.key()]["props"]["text"];
+  lv_label_set_text(label, text);
+  lv_obj_center(label);
+  lv_obj_set_style_text_color(label, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);   
+}
+
+void mgui_render_switch(JsonPair kv, JsonObject root) {
+  lv_obj_t * sw = lv_switch_create(lv_scr_act());
+
+  MGUI_object * m_switch = new MGUI_object(sw, (char*)kv.key().c_str(), "test");
+
+  switches.add(m_switch);
+
+  lv_obj_set_user_data(sw, m_switch);
+
+  lv_obj_add_event_cb(sw, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+  //lv_obj_add_state(switches[numSwitches], LV_STATE_CHECKED);
+  //lv_obj_add_event_cb(switches[numSwitches], counter_event_handler, LV_EVENT_ALL, NULL);
+  lv_obj_set_pos(sw, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  lv_obj_set_style_bg_color(sw, lv_color_make(188, 188, 188), LV_PART_MAIN | LV_STATE_DEFAULT);
+  //lv_obj_set_style_bg_color(switches[numSwitches], lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_KNOB);
+  lv_obj_set_style_bg_color(sw, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR | LV_STATE_CHECKED);
+}
+
+void mgui_render_slider(JsonPair kv, JsonObject root) {
+  lv_obj_t * slider = lv_slider_create(lv_scr_act());
+
+  MGUI_object * m_slider = new MGUI_object(slider, (char*)kv.key().c_str(), "test");
+
+  sliders.add(m_slider);
+
+  lv_obj_set_user_data(slider, m_slider);
+
+  lv_obj_add_event_cb(slider, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+  lv_obj_set_width(slider, root[kv.key()]["props"]["width"]);
+  lv_obj_set_pos(slider, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  lv_slider_set_range(slider, root[kv.key()]["props"]["min"], root[kv.key()]["props"]["max"]);
+  lv_obj_set_style_bg_color(slider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(slider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_KNOB);
+}
+
+void mgui_render_checkbox(JsonPair kv, JsonObject root) {
+  lv_obj_t * checkbox = lv_checkbox_create(lv_scr_act());
+
+  MGUI_object * m_checkbox = new MGUI_object(checkbox, (char*)kv.key().c_str(), "test");
+
+  checkboxes.add(m_checkbox);
+
+  lv_obj_set_user_data(checkbox, m_checkbox);
+
+  lv_obj_add_event_cb(checkbox, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  lv_obj_set_pos(checkbox, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  lv_checkbox_set_text(checkbox, "");
+  lv_obj_set_style_border_color(checkbox, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(checkbox, lv_color_make(255, 255, 255), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+  lv_obj_set_style_bg_color(checkbox, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR | LV_STATE_CHECKED);
+}
+
+void mgui_render_textfield(JsonPair kv, JsonObject root) {
+  lv_obj_t * textfield = lv_label_create(lv_scr_act());
+
+  MGUI_object * m_textfield = new MGUI_object(textfield, (char*)kv.key().c_str(), "test");
+
+  textfields.add(m_textfield);
+
+  lv_obj_set_user_data(textfield, m_textfield);
+
+  lv_obj_set_pos(textfield, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  const char* text = root[kv.key()]["props"]["text"];
+  lv_label_set_text(textfield, text);
+  lv_obj_set_style_text_color(textfield, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
+}
+
+// TODO: Implement ONE function for generating any object. Pass parameters (JsonPair kv, JsonObject root, LinkedList * ref, lvgl style)
+
 // Render MicroGUI from json
 void mgui_render(char json[]) {
   DynamicJsonDocument doc(strnlen(json, 100000) + 1000);    // Length of JSON plus some slack
 
   DeserializationError error = deserializeJson(doc, json);
-
+  
   if (error) {
+    // TODO: Render a text telling the user that the deserialization failed
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.f_str());
     return;
@@ -194,98 +306,27 @@ void mgui_render(char json[]) {
 
     // If object is the Canvas, i.e background
     if(type.equals("CanvasArea")) {
-      lv_obj_t *square = lv_obj_create(lv_scr_act());
-      lv_obj_set_size(square, screenWidth, screenHeight);
-      lv_obj_align(square, LV_ALIGN_CENTER, 0, 0);
-      lv_obj_set_style_bg_color(square, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
-      lv_obj_set_style_border_width(square, 0, 0);
-      lv_obj_set_style_border_width(square, 0, 0);
-      lv_obj_set_style_radius(square, 0, 0);
+      mgui_render_canvas(kv, root);
     }
     // If object is a button
     else if(type.equals("Button")) {
-      lv_obj_t * button = lv_btn_create(lv_scr_act());
-
-      // Create MGUI_object for newly created button
-      MGUI_object * m_button = new MGUI_object(button, (char*)kv.key().c_str(), "test");
-
-      // Store MGUI_object pointer in linked list
-      buttons.add(button);
-
-      lv_obj_set_user_data(button, m_button);//new MGUI_object(button, (const char*)kv.key().c_str(), (const char*)"test"));    // Store the name of the widget as user data
-
-      lv_obj_add_event_cb(button, widget_cb, LV_EVENT_CLICKED, (char*)kv.key().c_str());
-
-      lv_obj_set_pos(button, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
-      lv_obj_set_height(button, LV_SIZE_CONTENT);
-      lv_obj_set_style_bg_color(button, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
-      
-      lv_obj_t * label = lv_label_create(button);
-      const char* text = root[kv.key()]["props"]["text"];
-      lv_label_set_text(label, text);
-      lv_obj_center(label);
-      lv_obj_set_style_text_color(label, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
+      mgui_render_button(kv, root);
     }
     // If object is a switch
     else if(type.equals("Switch")) {
-      lv_obj_t * sw = lv_switch_create(lv_scr_act());
-
-      switches.add(sw);
-
-      lv_obj_set_user_data(sw, new MGUI_object(sw, (const char*)kv.key().c_str(), (const char*)"test"));    // Store the name of the widget as user data
-
-      lv_obj_add_event_cb(sw, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
-
-      //lv_obj_add_state(switches[numSwitches], LV_STATE_CHECKED);
-      //lv_obj_add_event_cb(switches[numSwitches], counter_event_handler, LV_EVENT_ALL, NULL);
-      lv_obj_set_pos(sw, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
-      lv_obj_set_style_bg_color(sw, lv_color_make(188, 188, 188), LV_PART_MAIN | LV_STATE_DEFAULT);
-      //lv_obj_set_style_bg_color(switches[numSwitches], lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_KNOB);
-      lv_obj_set_style_bg_color(sw, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR | LV_STATE_CHECKED);
+      mgui_render_switch(kv, root);
     }
     // If object is a slider
     else if(type.equals("Slider")) {
-      lv_obj_t * slider = lv_slider_create(lv_scr_act());
-
-      sliders.add(slider);
-
-      lv_obj_set_user_data(slider, new MGUI_object(slider, (const char*)kv.key().c_str(), (const char*)"test"));    // Store the name of the widget as user data
-
-      lv_obj_add_event_cb(slider, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
-
-      lv_obj_set_width(slider, root[kv.key()]["props"]["width"]);
-      lv_obj_set_pos(slider, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
-      lv_slider_set_range(slider, root[kv.key()]["props"]["min"], root[kv.key()]["props"]["max"]);
-      lv_obj_set_style_bg_color(slider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR);
-      lv_obj_set_style_bg_color(slider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_KNOB);
+      mgui_render_slider(kv, root);
     }
     // If object is a checkbox
     else if(type.equals("Checkbox")) {
-      lv_obj_t * checkbox = lv_checkbox_create(lv_scr_act());
-
-      checkboxes.add(checkbox);
-
-      lv_obj_set_user_data(checkbox, new MGUI_object(checkbox, (const char*)kv.key().c_str(), (const char*)"test"));    // Store the name of the widget as user data
-
-      lv_obj_add_event_cb(checkbox, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
-      lv_obj_set_pos(checkbox, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
-      lv_checkbox_set_text(checkbox, "");
-      lv_obj_set_style_border_color(checkbox, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR);
-      lv_obj_set_style_bg_color(checkbox, lv_color_make(255, 255, 255), LV_PART_INDICATOR | LV_STATE_DEFAULT);
-      lv_obj_set_style_bg_color(checkbox, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR | LV_STATE_CHECKED);
+      mgui_render_checkbox(kv, root);
     }
     // If object is a textfield
     else if(type.equals("Textfield")) {
-      lv_obj_t * textfield = lv_label_create(lv_scr_act());
-
-      textfields.add(textfield);
-
-      lv_obj_set_user_data(textfield, new MGUI_object(textfield, (const char*)kv.key().c_str(), (const char*)"test"));    // Store the name of the widget as user data
-
-      lv_obj_set_pos(textfield, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
-      const char* text = root[kv.key()]["props"]["text"];
-      lv_label_set_text(textfield, text);
-      lv_obj_set_style_text_color(textfield, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
+      mgui_render_textfield(kv, root);
     }
   }
 }

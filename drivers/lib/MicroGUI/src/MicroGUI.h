@@ -24,6 +24,7 @@ class MGUI_object {
     
   public:
     MGUI_object(lv_obj_t * obj, const char * obj_name, const char * obj_event);
+    lv_obj_t * getObject();
     const char* getEvent();
     const char* getParent();
     int getValue();
