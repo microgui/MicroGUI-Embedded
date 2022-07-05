@@ -69,8 +69,14 @@ void mgui_render_slider(JsonPair kv, JsonObject root);
 void mgui_render_checkbox(JsonPair kv, JsonObject root);
 void mgui_render_textfield(JsonPair kv, JsonObject root);
 
+// Return void for now, but may want to return error in the future??
+void mgui_set_value(const char * obj_name, int value);
+void mgui_set_text(const char * obj_name, const char * text);
+
 /* Display functions */
 void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
 void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data);
+
+void lv_port_indev_init(void);
 
 #endif

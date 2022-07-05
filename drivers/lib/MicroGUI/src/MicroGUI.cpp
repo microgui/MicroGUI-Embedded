@@ -49,6 +49,9 @@ LinkedList<MGUI_object*> sliders;
 LinkedList<MGUI_object*> checkboxes;
 LinkedList<MGUI_object*> textfields;
 
+/* For storing the initial json document internally */
+char * document;
+
 
 /* MicroGUI object class functions */
 
@@ -103,11 +106,13 @@ int MGUI_event::getValue() {
 
 /* MicroGUI functions */
 
+/* Parse json for important data in the beginning */
 void mgui_parse(char json[]) {
-  DynamicJsonDocument doc(strnlen(json, 100000) + 1000);    // Length of JSON plus some slack
+  document = json;    // Make a copy of input array, stored for internal use
 
-  DeserializationError error = deserializeJson(doc, (const char*)json);
-  
+  DynamicJsonDocument doc(strnlen(document, 100000) + 1000);    // Length of JSON plus some slack
+
+  DeserializationError error = deserializeJson(doc, (const char*)document);
   if (error) {
     // TODO: Render a text telling the user that the deserialization failed
     Serial.print(F("deserializeJson() failed: "));
@@ -119,10 +124,12 @@ void mgui_parse(char json[]) {
 
   screenWidth = root["ROOT"]["props"]["width"];
   screenHeight = root["ROOT"]["props"]["height"];
+
+  doc.clear();
 }
 
 void mgui_init(char json[]) {
-  mgui_parse(json);
+  if(!screenWidth) mgui_parse(json);
 
   if(screenWidth < screenHeight) {
     mgui_init(json, MGUI_PORTRAIT);
@@ -135,8 +142,8 @@ void mgui_init(char json[]) {
 void mgui_init(char json[], int rotation) {
   if(!screenWidth) mgui_parse(json);
 
-  lcd.init(); // Initialize LovyanGFX
-  lv_init();  // Initialize lvgl
+  lcd.init();   // Initialize LovyanGFX
+  lv_init();    // Initialize lvgl
 
   // Setting display rotation
   if(rotation % 2 == 1 && screenWidth < screenHeight) {
@@ -168,7 +175,7 @@ void mgui_init(char json[], int rotation) {
   indev_drv.read_cb = touchpad_read;
   lv_indev_drv_register(&indev_drv);
 
-  mgui_render(json);
+  mgui_render(document);
 }
 
 /* Let the display do its' work, returns an MGUI_event object */
@@ -206,12 +213,112 @@ static void widget_cb(lv_event_t * e) {
   newEvent = true;
 }
 
+
+
+
+static void button_init(void);
+static void button_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data);
+static int8_t button_get_pressed_id(void);
+static bool button_is_pressed(uint8_t id);
+
+lv_indev_t * indev_button;
+
+static int32_t encoder_diff;
+static lv_indev_state_t encoder_state;
+
+void lv_port_indev_init(void)
+{
+  static lv_indev_drv_t indev_drv;
+
+  /*Initialize your button if you have*/
+  button_init();
+
+  /*Register a button input device*/
+  lv_indev_drv_init(&indev_drv);
+  indev_drv.type = LV_INDEV_TYPE_BUTTON;
+  indev_drv.read_cb = button_read;
+  indev_button = lv_indev_drv_register(&indev_drv);
+
+  /*Assign buttons to points on the screen*/
+  static const lv_point_t btn_points[2] = {
+          {132, 120},   /*Button 0 -> x:10; y:10*/
+          {40, 100},  /*Button 1 -> x:40; y:100*/
+  };
+  lv_indev_set_button_points(indev_button, btn_points);
+}
+
+/*------------------
+ * Button
+ * -----------------*/
+
+/*Initialize your buttons*/
+static void button_init(void)
+{
+  /*Your code comes here*/
+  pinMode(2, INPUT);
+}
+
+/*Will be called by the library to read the button*/
+static void button_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
+{
+
+    static uint8_t last_btn = 0;
+
+    /*Get the pressed button's ID*/
+    int8_t btn_act = button_get_pressed_id();
+
+    if(btn_act >= 0) {
+        data->state = LV_INDEV_STATE_PR;
+        last_btn = btn_act;
+
+        Serial.println("HELLO");
+    } else {
+        data->state = LV_INDEV_STATE_REL;
+    }
+
+    /*Save the last pressed button's ID*/
+    data->btn_id = last_btn;
+}
+
+/*Get ID  (0, 1, 2 ..) of the pressed button*/
+static int8_t button_get_pressed_id(void)
+{
+    uint8_t i;
+
+    /*Check to buttons see which is being pressed (assume there are 2 buttons)*/
+    for(i = 0; i < 2; i++) {
+        /*Return the pressed button's ID*/
+        if(button_is_pressed(i)) {
+            return i;
+        }
+    }
+
+    /*No button pressed*/
+    return -1;
+}
+
+/*Test if `id` button is pressed or not*/
+static bool button_is_pressed(uint8_t id)
+{
+
+    /*Your code comes here*/
+    return digitalRead(2);
+}
+
+
+
+
+
+
+
+
+
+
 /* Render MicroGUI from json */
 void mgui_render(char json[]) {
   DynamicJsonDocument doc(strnlen(json, 100000) + 1000);    // Length of JSON plus some slack
 
-  DeserializationError error = deserializeJson(doc, json);
-  
+  DeserializationError error = deserializeJson(doc, (const char*)json);
   if (error) {
     // TODO: Render a text telling the user that the deserialization failed
     Serial.print(F("deserializeJson() failed: "));
@@ -250,6 +357,71 @@ void mgui_render(char json[]) {
     else if(type.equals("Textfield")) {
       mgui_render_textfield(kv, root);
     }
+  }
+
+  doc.clear();
+}
+
+MGUI_object * mgui_find_object(const char * obj_name, LinkedList<MGUI_object*> *list) {
+  for (int i = 0; i < list->size(); i++) {
+    if (strcmp(obj_name, list->get(i)->getParent()) == 0) {
+      return list->get(i);
+    }
+  }
+  return new MGUI_object(new lv_obj_t, "None", "None");   // Questionable way of exiting function if object was not found
+}
+
+void mgui_set_value(const char * obj_name, int value) {
+  
+
+  String object_name = obj_name;
+  object_name = object_name.substring(0, 4);
+
+  MGUI_object * object;
+
+  if (object_name.equals("Text")) {
+    object = mgui_find_object(obj_name, &textfields);
+  } else if (object_name.equals("Slid")) {
+    object = mgui_find_object(obj_name, &sliders);
+  } else if (object_name.equals("Swit")) {
+    object = mgui_find_object(obj_name, &switches);
+  } else if (object_name.equals("Chec")) {
+    object = mgui_find_object(obj_name, &checkboxes);
+  } else if (object_name.equals("Butt")) {
+    object = mgui_find_object(obj_name, &buttons);
+  }
+}
+
+void mgui_set_text(const char * obj_name, const char * text) {
+  String object_name = obj_name;
+  object_name = object_name.substring(0, 4);
+
+  MGUI_object * object;
+
+  if (object_name.equals("Text")) {
+    Serial.print(F("Let's try to find "));
+    Serial.println(obj_name);
+
+    object = mgui_find_object(obj_name, &textfields);
+
+    if (object->getParent() != "None") {
+      Serial.print(F("Found it! Let's set that label to: "));
+      Serial.println(text);
+      lv_label_set_text(object->getObject(), text);
+    } else {
+      Serial.print(F("Couldn't find "));
+      Serial.print(F(obj_name));
+      Serial.println(" :(");
+  }
+  } 
+  else if (object_name.equals("Butt")) {
+    Serial.println("Changing text of buttons is not yet supported");
+    return;
+  } 
+  else {
+    Serial.print(F("It makes no sense to change the text of"));
+    Serial.println(obj_name);
+    return;
   }
 }
 
@@ -326,6 +498,7 @@ void mgui_render_slider(JsonPair kv, JsonObject root) {
   lv_obj_set_width(slider, root[kv.key()]["props"]["width"]);
   lv_obj_set_pos(slider, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
   lv_slider_set_range(slider, root[kv.key()]["props"]["min"], root[kv.key()]["props"]["max"]);
+  lv_slider_set_value(slider, root[kv.key()]["props"]["value"], LV_ANIM_OFF);
   lv_obj_set_style_bg_color(slider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR);
   lv_obj_set_style_bg_color(slider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_KNOB);
 }
