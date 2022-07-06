@@ -73,6 +73,8 @@ void mgui_render_textfield(JsonPair kv, JsonObject root);
 void mgui_set_value(const char * obj_name, int value);
 void mgui_set_text(const char * obj_name, const char * text);
 
+bool mgui_compare(const char * string1, const char * string2);
+
 /* Display functions */
 void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
 void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data);

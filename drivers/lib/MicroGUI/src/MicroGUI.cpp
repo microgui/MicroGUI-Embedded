@@ -213,107 +213,6 @@ static void widget_cb(lv_event_t * e) {
   newEvent = true;
 }
 
-
-
-
-static void button_init(void);
-static void button_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data);
-static int8_t button_get_pressed_id(void);
-static bool button_is_pressed(uint8_t id);
-
-lv_indev_t * indev_button;
-
-static int32_t encoder_diff;
-static lv_indev_state_t encoder_state;
-
-void lv_port_indev_init(void)
-{
-  static lv_indev_drv_t indev_drv;
-
-  /*Initialize your button if you have*/
-  button_init();
-
-  /*Register a button input device*/
-  lv_indev_drv_init(&indev_drv);
-  indev_drv.type = LV_INDEV_TYPE_BUTTON;
-  indev_drv.read_cb = button_read;
-  indev_button = lv_indev_drv_register(&indev_drv);
-
-  /*Assign buttons to points on the screen*/
-  static const lv_point_t btn_points[2] = {
-          {132, 120},   /*Button 0 -> x:10; y:10*/
-          {40, 100},  /*Button 1 -> x:40; y:100*/
-  };
-  lv_indev_set_button_points(indev_button, btn_points);
-}
-
-/*------------------
- * Button
- * -----------------*/
-
-/*Initialize your buttons*/
-static void button_init(void)
-{
-  /*Your code comes here*/
-  pinMode(2, INPUT);
-}
-
-/*Will be called by the library to read the button*/
-static void button_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
-{
-
-    static uint8_t last_btn = 0;
-
-    /*Get the pressed button's ID*/
-    int8_t btn_act = button_get_pressed_id();
-
-    if(btn_act >= 0) {
-        data->state = LV_INDEV_STATE_PR;
-        last_btn = btn_act;
-
-        Serial.println("HELLO");
-    } else {
-        data->state = LV_INDEV_STATE_REL;
-    }
-
-    /*Save the last pressed button's ID*/
-    data->btn_id = last_btn;
-}
-
-/*Get ID  (0, 1, 2 ..) of the pressed button*/
-static int8_t button_get_pressed_id(void)
-{
-    uint8_t i;
-
-    /*Check to buttons see which is being pressed (assume there are 2 buttons)*/
-    for(i = 0; i < 2; i++) {
-        /*Return the pressed button's ID*/
-        if(button_is_pressed(i)) {
-            return i;
-        }
-    }
-
-    /*No button pressed*/
-    return -1;
-}
-
-/*Test if `id` button is pressed or not*/
-static bool button_is_pressed(uint8_t id)
-{
-
-    /*Your code comes here*/
-    return digitalRead(2);
-}
-
-
-
-
-
-
-
-
-
-
 /* Render MicroGUI from json */
 void mgui_render(char json[]) {
   DynamicJsonDocument doc(strnlen(json, 100000) + 1000);    // Length of JSON plus some slack
@@ -371,25 +270,55 @@ MGUI_object * mgui_find_object(const char * obj_name, LinkedList<MGUI_object*> *
   return new MGUI_object(new lv_obj_t, "None", "None");   // Questionable way of exiting function if object was not found
 }
 
-void mgui_set_value(const char * obj_name, int value) {
-  
+/* Returns true if strings are equal and false if not, for strings less than 50 characters */
+bool mgui_compare(const char * string1, const char * string2) {
+  return !(strncmp(string1, string2, 50));
+}
 
+void mgui_set_value(const char * obj_name, int value) {
   String object_name = obj_name;
   object_name = object_name.substring(0, 4);
 
   MGUI_object * object;
 
   if (object_name.equals("Text")) {
-    object = mgui_find_object(obj_name, &textfields);
-  } else if (object_name.equals("Slid")) {
+    String val = String(value);
+    char buf[16];
+    val.toCharArray(buf, 16);
+    mgui_set_text(obj_name, buf);
+    return;
+  } 
+  else if (object_name.equals("Slid")) {
     object = mgui_find_object(obj_name, &sliders);
-  } else if (object_name.equals("Swit")) {
+    if (object->getParent() != "None") {
+      lv_slider_set_value(object->getObject(), value, LV_ANIM_OFF);
+      return;
+    }
+  } 
+  else if (object_name.equals("Swit")) {
     object = mgui_find_object(obj_name, &switches);
-  } else if (object_name.equals("Chec")) {
+    if (object->getParent() != "None") {
+      if (value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
+      else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
+      return;
+    }
+  } 
+  else if (object_name.equals("Chec")) {
     object = mgui_find_object(obj_name, &checkboxes);
-  } else if (object_name.equals("Butt")) {
-    object = mgui_find_object(obj_name, &buttons);
+    if (object->getParent() != "None") {
+      if (value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
+      else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
+      return;
+    }
+  } 
+  else {
+    Serial.print(F("It makes no sense to change the value of"));
+    Serial.println(obj_name);
+    return;
   }
+  Serial.print(F("Couldn't find "));
+  Serial.print(F(obj_name));
+  Serial.println(" :(");
 }
 
 void mgui_set_text(const char * obj_name, const char * text) {
@@ -412,7 +341,7 @@ void mgui_set_text(const char * obj_name, const char * text) {
       Serial.print(F("Couldn't find "));
       Serial.print(F(obj_name));
       Serial.println(" :(");
-  }
+    }
   } 
   else if (object_name.equals("Butt")) {
     Serial.println("Changing text of buttons is not yet supported");
@@ -476,13 +405,14 @@ void mgui_render_switch(JsonPair kv, JsonObject root) {
   switches.add(m_switch);
   lv_obj_set_user_data(sw, m_switch);
   lv_obj_add_event_cb(sw, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  
+  if (root[kv.key()]["props"]["state"] == "true") {
+    lv_obj_add_state(sw, LV_STATE_CHECKED);
+  }
 
   // Styling
-  //lv_obj_add_state(switches[numSwitches], LV_STATE_CHECKED);
-  //lv_obj_add_event_cb(switches[numSwitches], counter_event_handler, LV_EVENT_ALL, NULL);
   lv_obj_set_pos(sw, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
   lv_obj_set_style_bg_color(sw, lv_color_make(188, 188, 188), LV_PART_MAIN | LV_STATE_DEFAULT);
-  //lv_obj_set_style_bg_color(switches[numSwitches], lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_KNOB);
   lv_obj_set_style_bg_color(sw, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR | LV_STATE_CHECKED);
 }
 
@@ -510,6 +440,10 @@ void mgui_render_checkbox(JsonPair kv, JsonObject root) {
   checkboxes.add(m_checkbox);
   lv_obj_set_user_data(checkbox, m_checkbox);
   lv_obj_add_event_cb(checkbox, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+  if (root[kv.key()]["props"]["state"] == "true") {
+    lv_obj_add_state(checkbox, LV_STATE_CHECKED);
+  }
 
   // Styling
   lv_obj_set_pos(checkbox, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
