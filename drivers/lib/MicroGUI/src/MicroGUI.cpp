@@ -110,7 +110,7 @@ int MGUI_event::getValue() {
 void mgui_parse(char json[]) {
   document = json;    // Make a copy of input array, stored for internal use
 
-  DynamicJsonDocument doc(strnlen(document, 100000) + 1000);    // Length of JSON plus some slack
+  DynamicJsonDocument doc(strnlen(document, 100000)*1.5);    // Length of JSON plus some slack
 
   DeserializationError error = deserializeJson(doc, (const char*)document);
   if (error) {
@@ -184,6 +184,16 @@ MGUI_event mgui_run() {
 
   if(newEvent) {      // Only return new events
     newEvent = false;
+
+    #if 1
+    Serial.print(F("\n[MicroGUI Event] Parent: "));
+    Serial.println(latest.getParent());
+    Serial.print(F("[MicroGUI Event] Type: "));
+    Serial.println(latest.getEvent());
+    Serial.print(F("[MicroGUI Event] Value: "));
+    Serial.println(latest.getValue());
+    #endif
+
     return latest;
   }
   return default_event;
@@ -194,7 +204,7 @@ static void widget_cb(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * object = lv_event_get_target(e);
 
-  if (code == LV_EVENT_CLICKED) {     // If button
+  if (code == LV_EVENT_CLICKED) {     // If button short-click, more events available from LVGL, implement later?
     latest = MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
                         ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 1);
   }
@@ -215,7 +225,7 @@ static void widget_cb(lv_event_t * e) {
 
 /* Render MicroGUI from json */
 void mgui_render(char json[]) {
-  DynamicJsonDocument doc(strnlen(json, 100000) + 1000);    // Length of JSON plus some slack
+  DynamicJsonDocument doc(strnlen(json, 100000)*1.5);    // Length of JSON plus some slack
 
   DeserializationError error = deserializeJson(doc, (const char*)json);
   if (error) {
@@ -371,7 +381,7 @@ void mgui_render_button(JsonPair kv, JsonObject root) {
   lv_obj_t * button = lv_btn_create(lv_scr_act());
 
   // Create MGUI_object for newly created button
-  MGUI_object * m_button = new MGUI_object(button, (char*)kv.key().c_str(), "test");
+  MGUI_object * m_button = new MGUI_object(button, (char*)kv.key().c_str(), root[kv.key()]["props"]["event"]);
 
   // Store MGUI_object pointer in linked list
   buttons.add(m_button);
@@ -401,12 +411,12 @@ void mgui_render_button(JsonPair kv, JsonObject root) {
 /* Function for rendering a switch */
 void mgui_render_switch(JsonPair kv, JsonObject root) {
   lv_obj_t * sw = lv_switch_create(lv_scr_act());
-  MGUI_object * m_switch = new MGUI_object(sw, (char*)kv.key().c_str(), "test");
+  MGUI_object * m_switch = new MGUI_object(sw, (char*)kv.key().c_str(), root[kv.key()]["props"]["event"]);
   switches.add(m_switch);
   lv_obj_set_user_data(sw, m_switch);
   lv_obj_add_event_cb(sw, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
   
-  if (root[kv.key()]["props"]["state"] == "true") {
+  if (root[kv.key()]["props"]["state"]) {
     lv_obj_add_state(sw, LV_STATE_CHECKED);
   }
 
@@ -419,7 +429,7 @@ void mgui_render_switch(JsonPair kv, JsonObject root) {
 /* Function for rendering a slider */
 void mgui_render_slider(JsonPair kv, JsonObject root) {
   lv_obj_t * slider = lv_slider_create(lv_scr_act());
-  MGUI_object * m_slider = new MGUI_object(slider, (char*)kv.key().c_str(), "test");
+  MGUI_object * m_slider = new MGUI_object(slider, (char*)kv.key().c_str(), root[kv.key()]["props"]["event"]);
   sliders.add(m_slider);
   lv_obj_set_user_data(slider, m_slider);
   lv_obj_add_event_cb(slider, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
@@ -436,12 +446,12 @@ void mgui_render_slider(JsonPair kv, JsonObject root) {
 /* Function for rendering a checkbox */
 void mgui_render_checkbox(JsonPair kv, JsonObject root) {
   lv_obj_t * checkbox = lv_checkbox_create(lv_scr_act());
-  MGUI_object * m_checkbox = new MGUI_object(checkbox, (char*)kv.key().c_str(), "test");
+  MGUI_object * m_checkbox = new MGUI_object(checkbox, (char*)kv.key().c_str(), root[kv.key()]["props"]["event"]);
   checkboxes.add(m_checkbox);
   lv_obj_set_user_data(checkbox, m_checkbox);
   lv_obj_add_event_cb(checkbox, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
-  if (root[kv.key()]["props"]["state"] == "true") {
+  if (root[kv.key()]["props"]["state"]) {
     lv_obj_add_state(checkbox, LV_STATE_CHECKED);
   }
 
@@ -456,7 +466,7 @@ void mgui_render_checkbox(JsonPair kv, JsonObject root) {
 /* Function for rendering a textfield */
 void mgui_render_textfield(JsonPair kv, JsonObject root) {
   lv_obj_t * textfield = lv_label_create(lv_scr_act());
-  MGUI_object * m_textfield = new MGUI_object(textfield, (char*)kv.key().c_str(), "test");
+  MGUI_object * m_textfield = new MGUI_object(textfield, (char*)kv.key().c_str(), "NoInput");
   textfields.add(m_textfield);
   lv_obj_set_user_data(textfield, m_textfield);
 
