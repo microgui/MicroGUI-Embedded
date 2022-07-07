@@ -9,6 +9,8 @@
 #include <Arduino.h>
 
 #include "MicroGUI.h"
+#include "RemoteMicroGUI.h"
+
 #include <LinkedList.h>
 
 #define LGFX_AUTODETECT // Autodetect board
@@ -190,7 +192,7 @@ MGUI_event mgui_run() {
   if(newEvent) {      // Only return new events
     newEvent = false;
 
-    #if 1
+    #if 0
     Serial.print(F("\n[MicroGUI Event] Parent: "));
     Serial.println(latest.getParent());
     Serial.print(F("[MicroGUI Event] Type: "));
@@ -198,6 +200,14 @@ MGUI_event mgui_run() {
     Serial.print(F("[MicroGUI Event] Value: "));
     Serial.println(latest.getValue());
     #endif
+
+    if (getRemoteInit()) {
+      char buf[50];
+      sprintf(buf, "{\"%s\": %i}", latest.getParent(), latest.getValue());
+      //Serial.println(buf);
+
+      mgui_send(buf);
+    }
 
     return latest;
   }
@@ -296,6 +306,10 @@ void mgui_set_value(const char * obj_name, int value) {
 
   MGUI_object * object;
 
+  char buf[50];
+  sprintf(buf, "{\"%s\": %i}", obj_name, value);
+  //Serial.println(buf);
+
   if (object_name.equals("Text")) {
     String val = String(value);
     char buf[16];
@@ -307,6 +321,10 @@ void mgui_set_value(const char * obj_name, int value) {
     object = mgui_find_object(obj_name, &sliders);
     if (object->getParent() != "None") {
       lv_slider_set_value(object->getObject(), value, LV_ANIM_OFF);
+
+      if (getRemoteInit()) {
+        mgui_send(buf);
+      }
       return;
     }
   } 
@@ -315,6 +333,10 @@ void mgui_set_value(const char * obj_name, int value) {
     if (object->getParent() != "None") {
       if (value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
       else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
+
+      if (getRemoteInit()) {
+        mgui_send(buf);
+      }
       return;
     }
   } 
@@ -323,6 +345,10 @@ void mgui_set_value(const char * obj_name, int value) {
     if (object->getParent() != "None") {
       if (value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
       else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
+
+      if (getRemoteInit()) {
+        mgui_send(buf);
+      }
       return;
     }
   } 
@@ -348,10 +374,18 @@ void mgui_set_text(const char * obj_name, const char * text) {
 
     object = mgui_find_object(obj_name, &textfields);
 
+    char buf[50];
+    sprintf(buf, "{\"%s\": \"%s\"}", obj_name, text);
+    //Serial.println(buf);
+
     if (object->getParent() != "None") {
       Serial.print(F("Found it! Let's set that label to: "));
       Serial.println(text);
       lv_label_set_text(object->getObject(), text);
+      
+      if (getRemoteInit()) {
+        mgui_send(buf);
+      }
     } else {
       Serial.print(F("Couldn't find "));
       Serial.print(F(obj_name));

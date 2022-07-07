@@ -6,6 +6,12 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 
+bool remoteInit = false;
+
+bool getRemoteInit() {
+    return remoteInit;
+}
+
 
 /* REMOTE MICROGUI */
 
@@ -16,7 +22,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
   
   if(type == WS_EVT_CONNECT){
   
-    Serial.println("Websocket client connection received");
+    Serial.println("WebSocket client connection received");
      
   } else if(type == WS_EVT_DISCONNECT){
  
@@ -40,6 +46,7 @@ void mgui_remote_init(const char * ssid, const char * password) {
   server.begin();
   
   Serial.println(WiFi.localIP());
+  remoteInit = true;
 }
 
 /* Initialize remote MicroGUI and set any textfield to display the IP address of the screen */
