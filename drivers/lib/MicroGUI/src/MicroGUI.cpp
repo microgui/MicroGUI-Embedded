@@ -176,10 +176,15 @@ void mgui_init(char json[], int rotation) {
   lv_indev_drv_register(&indev_drv);
 
   mgui_render(document);
+
+  mgui_run();
+  delay(5);
+  mgui_run();
 }
 
 /* Let the display do its' work, returns an MGUI_event object */
 MGUI_event mgui_run() {
+  delay(2);
   lv_timer_handler();
 
   if(newEvent) {      // Only return new events
