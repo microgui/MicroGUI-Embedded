@@ -41,8 +41,8 @@ static lv_color_t buf[4800 * 1];
 
 /* Variables/objects for MicroGUI events */
 static MGUI_event default_event("Default", "None", 0);
-static MGUI_event latest;
-static bool newEvent = false;
+MGUI_event latest;
+bool newEvent = false;
 
 /* Linked lists for storing object pointers, for later access */
 LinkedList<MGUI_object*> buttons;
@@ -186,7 +186,6 @@ void mgui_init(char json[], int rotation) {
 
 /* Let the display do its' work, returns an MGUI_event object */
 MGUI_event mgui_run() {
-  delay(2);
   lv_timer_handler();
 
   if(newEvent) {      // Only return new events
@@ -201,14 +200,6 @@ MGUI_event mgui_run() {
     Serial.println(latest.getValue());
     #endif
 
-    if (getRemoteInit()) {
-      char buf[50];
-      sprintf(buf, "{\"%s\": %i}", latest.getParent(), latest.getValue());
-      //Serial.println(buf);
-
-      mgui_send(buf);
-    }
-
     return latest;
   }
   return default_event;
@@ -219,23 +210,35 @@ static void widget_cb(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * object = lv_event_get_target(e);
 
+  int value;
+
   if (code == LV_EVENT_CLICKED) {     // If button short-click, more events available from LVGL, implement later?
     latest = MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
                         ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 1);
+    value = 1;
   }
   else if (code == LV_EVENT_VALUE_CHANGED) {
     if(lv_obj_check_type(object, &lv_slider_class)) {     // If slider
       latest = MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
                           ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
                           lv_slider_get_value(object));
+      value = lv_slider_get_value(object);
     } 
     else if (lv_obj_check_type(object, &lv_switch_class) || lv_obj_check_type(object, &lv_checkbox_class)) {    // If switch or checkbox
       latest = MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
                           ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
                           (int)lv_obj_get_state(object) & LV_STATE_CHECKED ? 1 : 0);
+      value = (int)lv_obj_get_state(object) & LV_STATE_CHECKED ? 1 : 0;
     }
   }
   newEvent = true;
+
+  if (getRemoteInit()) {
+      char buf[64];
+      sprintf(buf, "{\"%s\": %i}", ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), value);
+      //Serial.println(buf);
+      mgui_send(buf);
+  }
 }
 
 /* Render MicroGUI from json */
@@ -306,7 +309,7 @@ void mgui_set_value(const char * obj_name, int value) {
 
   MGUI_object * object;
 
-  char buf[50];
+  char buf[64];
   sprintf(buf, "{\"%s\": %i}", obj_name, value);
   //Serial.println(buf);
 
@@ -353,7 +356,7 @@ void mgui_set_value(const char * obj_name, int value) {
     }
   } 
   else {
-    Serial.print(F("It makes no sense to change the value of"));
+    Serial.print(F("It makes no sense to change the value of "));
     Serial.println(obj_name);
     return;
   }
@@ -374,7 +377,7 @@ void mgui_set_text(const char * obj_name, const char * text) {
 
     object = mgui_find_object(obj_name, &textfields);
 
-    char buf[50];
+    char buf[100];
     sprintf(buf, "{\"%s\": \"%s\"}", obj_name, text);
     //Serial.println(buf);
 

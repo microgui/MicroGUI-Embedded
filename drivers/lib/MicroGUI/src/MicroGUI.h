@@ -21,6 +21,8 @@ class MGUI_object {
     lv_obj_t * object;
     const char * name;
     const char * event;
+    // Store object type e.g button / slider
+    // redo set_value/set_text
     
   public:
     MGUI_object(lv_obj_t * obj, const char * obj_name, const char * obj_event);
@@ -54,6 +56,9 @@ typedef enum {
   MGUI_PORTRAIT_FLIPPED,
   MGUI_LANDSCAPE_FLIPPED  
 }MGUI_orientation;
+
+extern MGUI_event latest;
+extern bool newEvent;
 
 /* MicroGUI functions */
 void mgui_parse(char json[]);
