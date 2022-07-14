@@ -59,6 +59,7 @@ typedef enum {
 
 extern MGUI_event latest;
 extern bool newEvent;
+extern char* document;
 
 /* MicroGUI functions */
 void mgui_parse(char json[]);

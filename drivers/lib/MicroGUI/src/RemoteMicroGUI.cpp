@@ -18,43 +18,49 @@ bool getRemoteInit() {
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
+void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
 
     String message = (char*)data;
-    
-    DynamicJsonDocument doc(100);    // Length of JSON plus some slack
 
-    DeserializationError error = deserializeJson(doc, message);
-    if (error) {
-      // TODO: Render a text telling the user that the deserialization failed
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.f_str());
-      return;
+    /* If document is requested, send it in chunks */
+    if (strcmp((char*)data, "documentRequest") == 0) 
+    {
+      uint16_t chunk_size = 1000;
+      char temp[chunk_size + 1];
+      for(int i = 0; i < strlen(document); i += chunk_size) {
+        strncpy(temp, document + i, chunk_size);
+        temp[chunk_size] = '\0';
+        ws.text(client->id(), temp);
+        delay(10);
+      }
+      ws.text(client->id(), "DOCUMENT SENT");
     }
 
-    JsonObject root = doc.as<JsonObject>();
+    else 
+    {
+      DynamicJsonDocument doc(100);    // Length of JSON plus some slack
 
-    /*
-    if (getRemoteInit()) {
+      DeserializationError error = deserializeJson(doc, message);
+      if (error) {
+        Serial.print(F("deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        return;
+      }
+
+      JsonObject root = doc.as<JsonObject>();
+
       char buf[32];
       sprintf(buf, "{\"%s\": %i}", (const char*)root["Parent"], (int)root["Value"]);
-      Serial.println(buf);
+      //Serial.println(buf);
+
+      mgui_set_value((const char*)root["Parent"], (int)root["Value"]);
+      latest = MGUI_event((const char*)root["Event"], (const char*)root["Parent"], (int)root["Value"]);
+
+      newEvent = true;
     }
-    */
-
-    mgui_set_value((const char*)root["Parent"], (int)root["Value"]);
-    latest = MGUI_event((const char*)root["Event"], (const char*)root["Parent"], (int)root["Value"]);
-
-    newEvent = true;
-
-    
-    /*
-    if (strcmp((char*)data, "getValues") == 0) {
-      notifyClients(getSliderValues());
-    }*/
   }
 }
 
@@ -66,7 +72,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
   } 
   else if (type == WS_EVT_DATA) 
   {
-    handleWebSocketMessage(arg, data, len);
+    handleWebSocketMessage(client, arg, data, len);
   } 
   else if(type == WS_EVT_DISCONNECT)
   {
