@@ -29,15 +29,11 @@
 
 static LGFX lcd; // declare display variable
 
-/*** Setup screen resolution for LVGL ***/
-// screenHeight and screenWidth would need to be 
-// switched for the display to work properly in portrait mode
-// Fix later
+/* Setup screen resolution for LVGL */
 static uint16_t screenWidth;
 static uint16_t screenHeight;
 static lv_disp_draw_buf_t draw_buf;
-static lv_color_t buf[4800 * 1];
-
+static lv_color_t buf[4800];
 
 /* Variables/objects for MicroGUI events */
 static MGUI_event * default_event = new MGUI_event("Default", "None", 0);
@@ -51,71 +47,73 @@ LinkedList<MGUI_object*> sliders;
 LinkedList<MGUI_object*> checkboxes;
 LinkedList<MGUI_object*> textfields;
 
-LinkedList<MGUI_object*>* lists[] = {&textfields, &buttons};
-
 /* For storing the initial json document internally */
 char * document;
-
 
 /* MicroGUI object class functions */
 
 MGUI_object::MGUI_object(lv_obj_t * obj, const char * obj_type, const char * obj_name, const char * obj_event) {
   this->object = obj;
   memcpy(this->type, obj_type, strlen(obj_type) + 1);
-  memcpy(this->name, obj_name, strlen(obj_name) + 1);
-  memcpy(this->event, obj_event, strlen(obj_name) + 1);
+  memcpy(this->parent_id, obj_name, strlen(obj_name) + 1);
+  memcpy(this->event_id, obj_event, strlen(obj_name) + 1);
 }
 
 MGUI_object::MGUI_object() {
 }
 
+// Links an LVGL object with this MicroGUI object
 void MGUI_object::setObject(lv_obj_t * obj) {
   this->object = obj;
 }
 
+// Returns linked LVGL object
 lv_obj_t * MGUI_object::getObject() {
   return this->object;
 }
 
+// Returns object type, e.g. Button or Textfield
 char* MGUI_object::getType() {
   return this->type;
 }
 
+// Returns object's event id
 char* MGUI_object::getEvent() {
-  return this->event;
+  return this->event_id;
 }
 
+// Returns object's parent id, i.e. the object's name
 char* MGUI_object::getParent() {
-  return this->name;
+  return this->parent_id;
 }
 
 /* MicroGUI event class functions */
+
 MGUI_event::MGUI_event(const char * event, const char * parent, int val) {
-  memcpy(event_id, event, strnlen(event, 100) + 1);
-  memcpy(parent_id, parent, strnlen(parent, 100) + 1);
-  value = val;
+  memcpy(this->event_id, event, strnlen(event, 100) + 1);
+  memcpy(this->parent_id, parent, strnlen(parent, 100) + 1);
+  this->value = val;
 }
 
 MGUI_event::MGUI_event() {
-  memcpy(event_id, "None", strlen("None") + 1);
-  memcpy(parent_id, "None", strlen("None") + 1);
-  value = 0;
+  memcpy(this->event_id, "None", strlen("None") + 1);
+  memcpy(this->parent_id, "None", strlen("None") + 1);
+  this->value = 0;
 }
 
+// Returns the id of the triggered event
 char* MGUI_event::getEvent() {
-  return event_id;
+  return this->event_id;
 }
 
+// Returns the parent id of the object which triggered the event
 char* MGUI_event::getParent() {
-  return parent_id;
+  return this->parent_id;
 }
 
-bool MGUI_event::getState() {
-  return value;
-}
-
+// Returns a value associated with the triggered event
 int MGUI_event::getValue() {
-  return value;
+  return this->value;
 }
 
 
@@ -123,13 +121,12 @@ int MGUI_event::getValue() {
 
 /* Parse json for important data in the beginning */
 void mgui_parse(char json[]) {
-  document = json;    // Make a copy of input array, stored for internal use
+  document = json;    // Store a reference to the GUI document
 
   DynamicJsonDocument doc(strnlen(document, 100000)*1.5);    // Length of JSON plus some slack
 
   DeserializationError error = deserializeJson(doc, (const char*)document);
-  if (error) {
-    // TODO: Render a text telling the user that the deserialization failed
+  if(error) {
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.f_str());
     return;
@@ -143,6 +140,7 @@ void mgui_parse(char json[]) {
   doc.clear();
 }
 
+/* Initialize display for use with MicroGUI and render GUI, without specifying display orientation */
 void mgui_init(char json[]) {
   if(!screenWidth) mgui_parse(json);
 
@@ -174,7 +172,7 @@ void mgui_init(char json[], int rotation) {
   /* LVGL : Setting up buffer to use for display */
   lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 10);
 
-  /*** LVGL : Setup & Initialize the display device driver ***/
+  /* LVGL : Setup & Initialize the display device driver */
   static lv_disp_drv_t disp_drv;
   lv_disp_drv_init(&disp_drv);
   disp_drv.hor_res = screenWidth;
@@ -183,7 +181,7 @@ void mgui_init(char json[], int rotation) {
   disp_drv.draw_buf = &draw_buf;
   lv_disp_drv_register(&disp_drv);
 
-  /*** LVGL : Setup & Initialize the input device driver ***/
+  /* LVGL : Setup & Initialize the input device driver */
   static lv_indev_drv_t indev_drv;
   lv_indev_drv_init(&indev_drv);
   indev_drv.type = LV_INDEV_TYPE_POINTER;
@@ -197,7 +195,7 @@ void mgui_init(char json[], int rotation) {
   mgui_run();
 }
 
-/* Let the display do its' work, returns an MGUI_event object */
+/* Let the display do its' work, returns a MicroGUI event */
 MGUI_event * mgui_run() {
   lv_timer_handler();
 
@@ -225,34 +223,34 @@ static void widget_cb(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * object = lv_event_get_target(e);
 
-  int value;
-
   delete latest;
 
-  if (code == LV_EVENT_CLICKED) {     // If button short-click, more events available from LVGL, implement later?
+  int value;
+
+  if(code == LV_EVENT_CLICKED) {     // If button short-click, more events available from LVGL, implement later?
     value = 1;
     latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
-                        ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
-                        value);
+                            ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
+                            value);
   }
-  else if (code == LV_EVENT_VALUE_CHANGED) {
+  else if(code == LV_EVENT_VALUE_CHANGED) {
     if(lv_obj_check_type(object, &lv_slider_class)) {     // If slider
       value = lv_slider_get_value(object);
       latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
-                          ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
-                          value);
+                              ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
+                              value);
     } 
-    else if (lv_obj_check_type(object, &lv_switch_class) || lv_obj_check_type(object, &lv_checkbox_class)) {    // If switch or checkbox
+    else if(lv_obj_check_type(object, &lv_switch_class) || lv_obj_check_type(object, &lv_checkbox_class)) {    // If switch or checkbox
       value = (int)lv_obj_get_state(object) & LV_STATE_CHECKED ? 1 : 0;
       latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
-                          ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
-                          value);
+                              ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
+                              value);
     }
   }
   newEvent = true;
 
-  if (getRemoteInit()) {
-      char buf[64];
+  if(getRemoteInit()) {
+      char buf[100];
       sprintf(buf, "{\"%s\": %i}", ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), value);
       //Serial.println(buf);
       mgui_send(buf);
@@ -264,8 +262,7 @@ void mgui_render(char json[]) {
   DynamicJsonDocument doc(strnlen(json, 100000)*1.5);    // Length of JSON plus some slack
 
   DeserializationError error = deserializeJson(doc, (const char*)json);
-  if (error) {
-    // TODO: Render a text telling the user that the deserialization failed
+  if(error) {
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.f_str());
     return;
@@ -273,33 +270,32 @@ void mgui_render(char json[]) {
 
   JsonObject root = doc.as<JsonObject>();
 
-  // List all keys
-  for (JsonPair kv : root) {
-    // Find object type
-    String type = root[kv.key()]["type"]["resolvedName"];
+  // List all keys from the document
+  for(JsonPair kv : root) {
+    const char * type = (const char*)root[kv.key()]["type"]["resolvedName"];    // Find object type
 
     // If object is the Canvas, i.e background
-    if(type.equals("CanvasArea")) {
+    if(mgui_compare(type, "CanvasArea")) {
       mgui_render_canvas(kv, root);
     }
     // If object is a button
-    else if(type.equals("Button")) {
+    else if(mgui_compare(type, "Button")) {
       mgui_render_button(kv, root);
     }
     // If object is a switch
-    else if(type.equals("Switch")) {
+    else if(mgui_compare(type, "Switch")) {
       mgui_render_switch(kv, root);
     }
     // If object is a slider
-    else if(type.equals("Slider")) {
+    else if(mgui_compare(type, "Slider")) {
       mgui_render_slider(kv, root);
     }
     // If object is a checkbox
-    else if(type.equals("Checkbox")) {
+    else if(mgui_compare(type, "Checkbox")) {
       mgui_render_checkbox(kv, root);
     }
     // If object is a textfield
-    else if(type.equals("Textfield")) {
+    else if(mgui_compare(type, "Textfield")) {
       mgui_render_textfield(kv, root);
     }
   }
@@ -307,73 +303,79 @@ void mgui_render(char json[]) {
   doc.clear();
 }
 
+/* Search for an object in a list with corresponding name */
 MGUI_object * mgui_find_object(const char * obj_name, LinkedList<MGUI_object*> *list) {
-  for (int i = 0; i < list->size(); i++) {
-    if (strcmp(obj_name, list->get(i)->getParent()) == 0) {
+  for(int i = 0; i < list->size(); i++) {
+    if(strcmp(obj_name, list->get(i)->getParent()) == 0) {
       return list->get(i);
     }
   }
-  return new MGUI_object(new lv_obj_t, "None", "None", "None");   // Questionable way of exiting function if object was not found
+  return new MGUI_object(new lv_obj_t, "None", "None", "None");
 }
 
-/* Returns true if strings are equal and false if not, for strings less than 50 characters */
+/* Returns true if strings are equal and false if not, for strings less than 100 characters */
 bool mgui_compare(const char * string1, const char * string2) {
-  return !(strncmp(string1, string2, 50));
+  return !(strncmp(string1, string2, 100));
 }
 
+/* Set the value of a MicroGUI object */
 void mgui_set_value(const char * obj_name, int value) {
+  mgui_set_value(obj_name, value, true);
+}
+
+void mgui_set_value(const char * obj_name, int value, bool send) {
   MGUI_object * object = mgui_find_object(obj_name, &textfields);
-  if (strcmp(object->getType(), "None") == 0) {
+  if(strcmp(object->getType(), "None") == 0) {
     object = mgui_find_object(obj_name, &sliders);
   }
-  if (strcmp(object->getType(), "None") == 0) {
+  if(strcmp(object->getType(), "None") == 0) {
     object = mgui_find_object(obj_name, &switches);
   }
-  if (strcmp(object->getType(), "None") == 0) {
+  if(strcmp(object->getType(), "None") == 0) {
     object = mgui_find_object(obj_name, &checkboxes);
   }
 
-  char buf[64];
+  char buf[100];
   sprintf(buf, "{\"%s\": %i}", obj_name, value);
   //Serial.println(buf);
 
-  if (strcmp(object->getType(), "Textfield") == 0) {
+  if(strcmp(object->getType(), "Textfield") == 0) {
     String val = String(value);
     char buf[16];
     val.toCharArray(buf, 16);
     mgui_set_text(obj_name, buf);
     return;
   } 
-  else if (strcmp(object->getType(), "Slider") == 0) {
+  else if(strcmp(object->getType(), "Slider") == 0) {
     object = mgui_find_object(obj_name, &sliders);
-    if (object->getParent() != "None") {
+    if(object->getParent() != "None") {
       lv_slider_set_value(object->getObject(), value, LV_ANIM_OFF);
 
-      if (getRemoteInit()) {
+      if(getRemoteInit() && send) {
         mgui_send(buf);
       }
       return;
     }
   } 
-  else if (strcmp(object->getType(), "Switch") == 0) {
+  else if(strcmp(object->getType(), "Switch") == 0) {
     object = mgui_find_object(obj_name, &switches);
-    if (object->getParent() != "None") {
-      if (value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
+    if(object->getParent() != "None") {
+      if(value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
       else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
 
-      if (getRemoteInit()) {
+      if(getRemoteInit() && send) {
         mgui_send(buf);
       }
       return;
     }
   } 
-  else if (strcmp(object->getType(), "Checkbox") == 0) {
+  else if(strcmp(object->getType(), "Checkbox") == 0) {
     object = mgui_find_object(obj_name, &checkboxes);
-    if (object->getParent() != "None") {
-      if (value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
+    if(object->getParent() != "None") {
+      if(value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
       else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
 
-      if (getRemoteInit()) {
+      if(getRemoteInit() && send) {
         mgui_send(buf);
       }
       return;
@@ -389,29 +391,34 @@ void mgui_set_value(const char * obj_name, int value) {
   Serial.println(" :(");
 }
 
+/* Set the text of a MicroGUI object */
 void mgui_set_text(const char * obj_name, const char * text) {
+  mgui_set_text(obj_name, text, true);
+}
+
+void mgui_set_text(const char * obj_name, const char * text, bool send) {
   MGUI_object * object = mgui_find_object(obj_name, &textfields);
-  if (strcmp(object->getType(), "None") == 0) {
+  if(strcmp(object->getType(), "None") == 0) {
     object = mgui_find_object(obj_name, &buttons);
   }
 
-  if (strcmp(object->getType(), "Textfield") == 0) {
+  if(strcmp(object->getType(), "Textfield") == 0) {
     Serial.print(F("Let's try to find "));
     Serial.println(obj_name);
 
     char buf[100];
     sprintf(buf, "{\"%s\": \"%s\", \"type\": \"Textfield\"}", obj_name, text);
-    Serial.println(buf);
+    //Serial.println(buf);
 
     Serial.print(F("Found it! Let's set that label to: "));
     Serial.println(text);
     lv_label_set_text(object->getObject(), text);
     
-    if (getRemoteInit()) {
+    if(getRemoteInit() && send) {
       mgui_send(buf);
     }
   }
-  else if (strcmp(object->getType(), "Button") == 0) {
+  else if(strcmp(object->getType(), "Button") == 0) {
     Serial.println("Updating text of buttons is not yet supported");
     return;
   } 
@@ -439,9 +446,7 @@ void mgui_render_button(JsonPair kv, JsonObject root) {
   lv_obj_t * button = lv_btn_create(lv_scr_act());
 
   // Create MGUI_object for newly created button
-  //MGUI_object * m_button = new MGUI_object(button, kv.key().c_str(), root[kv.key()]["props"]["event"]);
   MGUI_object * m_button = new MGUI_object;
-  //memcpy(m_button->getObject(), button, sizeof(lv_obj_t*));
   m_button->setObject(button);
   memcpy(m_button->getType(), (const char*)root[kv.key()]["type"]["resolvedName"], strlen((const char*)root[kv.key()]["type"]["resolvedName"]));
   memcpy(m_button->getParent(), kv.key().c_str(), strlen(kv.key().c_str()));
@@ -449,9 +454,6 @@ void mgui_render_button(JsonPair kv, JsonObject root) {
 
   // Store MGUI_object pointer in linked list
   buttons.add(m_button);
-  // Below is how we access MGUI objects later
-  //Serial.println(buttons.get(0)->getParent());
-  //Serial.println(buttons.get(1)->getParent());
 
   // Store the MGUI object as user data
   lv_obj_set_user_data(button, m_button);
@@ -486,7 +488,7 @@ void mgui_render_switch(JsonPair kv, JsonObject root) {
   lv_obj_set_user_data(sw, m_switch);
   lv_obj_add_event_cb(sw, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
   
-  if (root[kv.key()]["props"]["state"]) {
+  if(root[kv.key()]["props"]["state"]) {
     lv_obj_add_state(sw, LV_STATE_CHECKED);
   }
 
@@ -533,7 +535,7 @@ void mgui_render_checkbox(JsonPair kv, JsonObject root) {
   lv_obj_set_user_data(checkbox, m_checkbox);
   lv_obj_add_event_cb(checkbox, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
-  if (root[kv.key()]["props"]["state"]) {
+  if(root[kv.key()]["props"]["state"]) {
     lv_obj_add_state(checkbox, LV_STATE_CHECKED);
   }
 
@@ -566,13 +568,10 @@ void mgui_render_textfield(JsonPair kv, JsonObject root) {
 }
 
 
-
-
 /** Display functions */
 
 /* Display callback to flush the buffer to screen */
-void display_flush(lv_disp_drv_t * disp, const lv_area_t *area, lv_color_t *color_p)
-{
+void display_flush(lv_disp_drv_t * disp, const lv_area_t *area, lv_color_t *color_p) {
   uint32_t w = (area->x2 - area->x1 + 1);
   uint32_t h = (area->y2 - area->y1 + 1);
 
@@ -585,8 +584,7 @@ void display_flush(lv_disp_drv_t * disp, const lv_area_t *area, lv_color_t *colo
 }
 
 /* Touchpad callback to read the touchpad */
-void touchpad_read(lv_indev_drv_t * indev_driver, lv_indev_data_t * data)
-{
+void touchpad_read(lv_indev_drv_t * indev_driver, lv_indev_data_t * data) {
   uint16_t touchX, touchY;
   bool touched = lcd.getTouch(&touchX, &touchY);
 

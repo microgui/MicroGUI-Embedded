@@ -44,7 +44,7 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
 
     else 
     {
-      DynamicJsonDocument doc(100);    // Length of JSON plus some slack
+      DynamicJsonDocument doc(200);    // Length of JSON plus some slack
 
       DeserializationError error = deserializeJson(doc, message);
       if (error) {
@@ -55,15 +55,17 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
 
       JsonObject root = doc.as<JsonObject>();
 
-      mgui_set_value((const char*)root["Parent"], (int)root["Value"]);
+      mgui_set_value((const char*)root["Parent"], (int)root["Value"], true);
       
       memcpy(event, (const char*)root["Event"], strlen((const char*)root["Event"]) + 1);
       memcpy(parent, (const char*)root["Parent"], strlen((const char*)root["Parent"]) + 1);
 
+      delete latest;
       latest = new MGUI_event(event, parent, (int)root["Value"]);
-      //memcpy(&latest, new MGUI_event(event, parent, (int)root["Value"]), sizeof(MGUI_event));
 
       newEvent = true;
+
+      doc.clear();
     }
   }
 }

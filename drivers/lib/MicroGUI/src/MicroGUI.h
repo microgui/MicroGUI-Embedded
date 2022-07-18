@@ -19,20 +19,18 @@
 class MGUI_object {
   private:
     lv_obj_t * object;
-    char name[100]={0};
-    char event[100]={0};
+    char parent_id[100]={0};
+    char event_id[100]={0};
     char type[30]={0};
     
   public:
     MGUI_object(lv_obj_t * obj, const char * obj_type, const char * obj_name, const char * obj_event);
     MGUI_object();
-    lv_obj_t * getObject();
     void setObject(lv_obj_t * obj);
+    lv_obj_t * getObject();
     char* getEvent();
     char* getParent();
     char* getType();
-    int getValue();
-    bool getState();
 };
 
 /* MicroGUI event class */
@@ -41,15 +39,12 @@ class MGUI_event {
     char event_id[100]={0};
     char parent_id[100]={0};
     int value;
-    //bool state;
   public:
     MGUI_event(const char * event, const char * parent, int val);
     MGUI_event();
-    // Either getter functions like below or make class variables like event_id public
     char* getEvent();
     char* getParent();
     int getValue();
-    bool getState();
 };
 
 typedef enum {
@@ -78,7 +73,9 @@ void mgui_render_checkbox(JsonPair kv, JsonObject root);
 void mgui_render_textfield(JsonPair kv, JsonObject root);
 
 // Return void for now, but may want to return error in the future??
+void mgui_set_value(const char * obj_name, int value, bool send);
 void mgui_set_value(const char * obj_name, int value);
+void mgui_set_text(const char * obj_name, const char * text, bool send);
 void mgui_set_text(const char * obj_name, const char * text);
 
 bool mgui_compare(const char * string1, const char * string2);
