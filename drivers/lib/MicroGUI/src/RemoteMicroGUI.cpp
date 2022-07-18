@@ -12,6 +12,9 @@ bool getRemoteInit() {
     return remoteInit;
 }
 
+char event[100];
+char parent[100];
+
 
 /* REMOTE MICROGUI */
 
@@ -28,13 +31,13 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
     /* If document is requested, send it in chunks */
     if (strcmp((char*)data, "documentRequest") == 0) 
     {
-      uint16_t chunk_size = 1000;
+      uint16_t chunk_size = 2000;
       char temp[chunk_size + 1];
       for(int i = 0; i < strlen(document); i += chunk_size) {
         strncpy(temp, document + i, chunk_size);
         temp[chunk_size] = '\0';
         ws.text(client->id(), temp);
-        delay(10);
+        delay(50);
       }
       ws.text(client->id(), "DOCUMENT SENT");
     }
@@ -52,12 +55,13 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
 
       JsonObject root = doc.as<JsonObject>();
 
-      char buf[32];
-      sprintf(buf, "{\"%s\": %i}", (const char*)root["Parent"], (int)root["Value"]);
-      //Serial.println(buf);
-
       mgui_set_value((const char*)root["Parent"], (int)root["Value"]);
-      latest = MGUI_event((const char*)root["Event"], (const char*)root["Parent"], (int)root["Value"]);
+      
+      memcpy(event, (const char*)root["Event"], strlen((const char*)root["Event"]) + 1);
+      memcpy(parent, (const char*)root["Parent"], strlen((const char*)root["Parent"]) + 1);
+
+      latest = new MGUI_event(event, parent, (int)root["Value"]);
+      //memcpy(&latest, new MGUI_event(event, parent, (int)root["Value"]), sizeof(MGUI_event));
 
       newEvent = true;
     }

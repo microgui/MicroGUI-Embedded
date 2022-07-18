@@ -19,16 +19,18 @@
 class MGUI_object {
   private:
     lv_obj_t * object;
-    const char * name;
-    const char * event;
-    // Store object type e.g button / slider
-    // redo set_value/set_text
+    char name[100]={0};
+    char event[100]={0};
+    char type[30]={0};
     
   public:
-    MGUI_object(lv_obj_t * obj, const char * obj_name, const char * obj_event);
+    MGUI_object(lv_obj_t * obj, const char * obj_type, const char * obj_name, const char * obj_event);
+    MGUI_object();
     lv_obj_t * getObject();
-    const char* getEvent();
-    const char* getParent();
+    void setObject(lv_obj_t * obj);
+    char* getEvent();
+    char* getParent();
+    char* getType();
     int getValue();
     bool getState();
 };
@@ -36,16 +38,16 @@ class MGUI_object {
 /* MicroGUI event class */
 class MGUI_event {
   private:
-    const char * event_id;
-    const char * parent_id;
+    char event_id[100]={0};
+    char parent_id[100]={0};
     int value;
     //bool state;
   public:
     MGUI_event(const char * event, const char * parent, int val);
     MGUI_event();
     // Either getter functions like below or make class variables like event_id public
-    const char* getEvent();
-    const char* getParent();
+    char* getEvent();
+    char* getParent();
     int getValue();
     bool getState();
 };
@@ -57,7 +59,7 @@ typedef enum {
   MGUI_LANDSCAPE_FLIPPED  
 }MGUI_orientation;
 
-extern MGUI_event latest;
+extern MGUI_event * latest;
 extern bool newEvent;
 extern char* document;
 
@@ -66,7 +68,7 @@ void mgui_parse(char json[]);
 void mgui_init(char json[]);
 void mgui_init(char json[], int rotation);
 void mgui_render(char json[]);
-MGUI_event mgui_run();
+MGUI_event * mgui_run();
 
 void mgui_render_canvas(JsonPair kv, JsonObject root);
 void mgui_render_button(JsonPair kv, JsonObject root);
