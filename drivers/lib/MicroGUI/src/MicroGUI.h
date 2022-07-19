@@ -56,7 +56,7 @@ typedef enum {
 
 extern MGUI_event * latest;
 extern bool newEvent;
-extern char* document;
+extern char document[];
 
 /* MicroGUI functions */
 void mgui_parse(char json[]);
@@ -64,6 +64,7 @@ void mgui_init(char json[]);
 void mgui_init(char json[], int rotation);
 void mgui_render(char json[]);
 MGUI_event * mgui_run();
+void mgui_update_doc();
 
 void mgui_render_canvas(JsonPair kv, JsonObject root);
 void mgui_render_button(JsonPair kv, JsonObject root);

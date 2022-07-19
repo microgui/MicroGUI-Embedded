@@ -28,9 +28,13 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
 
     String message = (char*)data;
 
-    /* If document is requested, send it in chunks */
+    /* If document is requested, update the document and send it in chunks */
     if (strcmp((char*)data, "documentRequest") == 0) 
     {
+      // Fetch all the latest values/states
+      mgui_update_doc();
+
+      // Send the document to the client that requested it
       uint16_t chunk_size = 2000;
       char temp[chunk_size + 1];
       for(int i = 0; i < strlen(document); i += chunk_size) {

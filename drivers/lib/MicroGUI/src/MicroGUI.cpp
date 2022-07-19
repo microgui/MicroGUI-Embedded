@@ -48,7 +48,7 @@ LinkedList<MGUI_object*> checkboxes;
 LinkedList<MGUI_object*> textfields;
 
 /* For storing the initial json document internally */
-char * document;
+char document[20000];
 
 /* MicroGUI object class functions */
 
@@ -121,7 +121,8 @@ int MGUI_event::getValue() {
 
 /* Parse json for important data in the beginning */
 void mgui_parse(char json[]) {
-  document = json;    // Store a reference to the GUI document
+  //document = json;    // Store a reference to the GUI document
+  memcpy(document, json, strlen(json));
 
   DynamicJsonDocument doc(strnlen(document, 100000)*1.5);    // Length of JSON plus some slack
 
@@ -324,6 +325,7 @@ void mgui_set_value(const char * obj_name, int value) {
 }
 
 void mgui_set_value(const char * obj_name, int value, bool send) {
+  // Find MicroGUI object
   MGUI_object * object = mgui_find_object(obj_name, &textfields);
   if(strcmp(object->getType(), "None") == 0) {
     object = mgui_find_object(obj_name, &sliders);
@@ -335,10 +337,7 @@ void mgui_set_value(const char * obj_name, int value, bool send) {
     object = mgui_find_object(obj_name, &checkboxes);
   }
 
-  char buf[100];
-  sprintf(buf, "{\"%s\": %i}", obj_name, value);
-  //Serial.println(buf);
-
+  // Change its' value according to type
   if(strcmp(object->getType(), "Textfield") == 0) {
     String val = String(value);
     char buf[16];
@@ -347,48 +346,29 @@ void mgui_set_value(const char * obj_name, int value, bool send) {
     return;
   } 
   else if(strcmp(object->getType(), "Slider") == 0) {
-    object = mgui_find_object(obj_name, &sliders);
-    if(object->getParent() != "None") {
-      lv_slider_set_value(object->getObject(), value, LV_ANIM_OFF);
-
-      if(getRemoteInit() && send) {
-        mgui_send(buf);
-      }
-      return;
-    }
+    lv_slider_set_value(object->getObject(), value, LV_ANIM_OFF);
   } 
   else if(strcmp(object->getType(), "Switch") == 0) {
-    object = mgui_find_object(obj_name, &switches);
-    if(object->getParent() != "None") {
-      if(value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
-      else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
-
-      if(getRemoteInit() && send) {
-        mgui_send(buf);
-      }
-      return;
-    }
+    if(value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
+    else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
   } 
   else if(strcmp(object->getType(), "Checkbox") == 0) {
-    object = mgui_find_object(obj_name, &checkboxes);
-    if(object->getParent() != "None") {
-      if(value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
-      else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
-
-      if(getRemoteInit() && send) {
-        mgui_send(buf);
-      }
-      return;
-    }
+    if(value) lv_obj_add_state(object->getObject(), LV_STATE_CHECKED);
+    else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
   } 
   else {
-    Serial.print(F("It makes no sense to change the value of "));
+    Serial.print(F("Could not change the value of "));
     Serial.println(obj_name);
     return;
   }
-  Serial.print(F("Couldn't find "));
-  Serial.print(F(obj_name));
-  Serial.println(" :(");
+
+  // Broadcast value change to connected WebSocket clients
+  if(getRemoteInit() && send) {
+    char buf[100];
+    sprintf(buf, "{\"%s\": %i}", obj_name, value);
+    //Serial.println(buf);
+    mgui_send(buf);
+  }
 }
 
 /* Set the text of a MicroGUI object */
@@ -397,24 +377,21 @@ void mgui_set_text(const char * obj_name, const char * text) {
 }
 
 void mgui_set_text(const char * obj_name, const char * text, bool send) {
+  // Find MicroGUI object, which has text
   MGUI_object * object = mgui_find_object(obj_name, &textfields);
   if(strcmp(object->getType(), "None") == 0) {
     object = mgui_find_object(obj_name, &buttons);
   }
 
+  // Change it's text according to type
   if(strcmp(object->getType(), "Textfield") == 0) {
-    Serial.print(F("Let's try to find "));
-    Serial.println(obj_name);
-
-    char buf[100];
-    sprintf(buf, "{\"%s\": \"%s\", \"type\": \"Textfield\"}", obj_name, text);
-    //Serial.println(buf);
-
-    Serial.print(F("Found it! Let's set that label to: "));
-    Serial.println(text);
     lv_label_set_text(object->getObject(), text);
     
+    // Broadcast value change to connected WebSocket clients
     if(getRemoteInit() && send) {
+      char buf[100];
+      sprintf(buf, "{\"%s\": \"%s\", \"type\": \"Textfield\"}", obj_name, text);
+      //Serial.println(buf);
       mgui_send(buf);
     }
   }
@@ -427,6 +404,36 @@ void mgui_set_text(const char * obj_name, const char * text, bool send) {
     Serial.print(F(obj_name));
     return;
   }
+}
+
+/* Update GUI document with latest values/states */
+void mgui_update_doc() {
+  DynamicJsonDocument doc(strnlen(document, 100000)*1.5);    // Length of JSON plus some slack
+
+  DeserializationError error = deserializeJson(doc, (const char*)document);
+  if(error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.f_str());
+    return;
+  }
+
+  JsonObject root = doc.as<JsonObject>();
+  
+  for(int i = 0; i < textfields.size(); i++) {
+    root[textfields.get(i)->getParent()]["props"]["text"] = lv_label_get_text(textfields.get(i)->getObject());
+  }
+  for(int i = 0; i < switches.size(); i++) {
+    root[switches.get(i)->getParent()]["props"]["state"] = (int)lv_obj_get_state(switches.get(i)->getObject()) & LV_STATE_CHECKED ? 1 : 0;
+  }
+  for(int i = 0; i < checkboxes.size(); i++) {
+    root[checkboxes.get(i)->getParent()]["props"]["state"] = (int)lv_obj_get_state(checkboxes.get(i)->getObject()) & LV_STATE_CHECKED ? 1 : 0;
+  }
+  for(int i = 0; i < sliders.size(); i++) {
+    root[sliders.get(i)->getParent()]["props"]["value"] = lv_slider_get_value(sliders.get(i)->getObject());
+  }
+
+  serializeJson(root, document);
+  doc.clear();
 }
 
 /* Function for rendering a canvas */
