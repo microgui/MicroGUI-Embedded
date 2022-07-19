@@ -37,6 +37,7 @@ static lv_color_t buf[4800];
 
 /* Variables/objects for MicroGUI events */
 static MGUI_event * default_event = new MGUI_event("Default", "None", 0);
+static MGUI_object * noneObject = new MGUI_object(new lv_obj_t, "None", "None", "None");
 MGUI_event * latest;
 bool newEvent = false;
 
@@ -311,7 +312,7 @@ MGUI_object * mgui_find_object(const char * obj_name, LinkedList<MGUI_object*> *
       return list->get(i);
     }
   }
-  return new MGUI_object(new lv_obj_t, "None", "None", "None");
+  return noneObject;
 }
 
 /* Returns true if strings are equal and false if not, for strings less than 100 characters */
