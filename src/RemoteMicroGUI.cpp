@@ -1,3 +1,12 @@
+//
+//   Extension of MicroGUI embedded library to enable remote monitoring and
+//   control of an embedded display running MicroGUI
+//
+//   Utilized libraries: ESPAsyncWebServer
+// 
+//   written by Linus Johansson, 2022 @ Plejd
+//
+
 #include <Arduino.h>
 
 #include "MicroGUI.h"
@@ -29,8 +38,9 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
     String message = (char*)data;
 
     /* If document is requested, update the document and send it in chunks */
-    if (strcmp((char*)data, "documentRequest") == 0) 
-    {
+    if (strcmp((char*)data, "documentRequest") == 0) {
+      Serial.print(F("[MicroGUI Remote]: Document requested by client "));
+      Serial.println(client->id());
       // Fetch all the latest values/states
       mgui_update_doc();
 
@@ -44,10 +54,11 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
         delay(50);
       }
       ws.text(client->id(), "DOCUMENT SENT");
+
+      Serial.println("[MicroGUI Remote]: Document sent!");
     }
 
-    else 
-    {
+    else {
       DynamicJsonDocument doc(200);    // Length of JSON plus some slack
 
       DeserializationError error = deserializeJson(doc, message);
@@ -60,7 +71,7 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
       JsonObject root = doc.as<JsonObject>();
 
       mgui_set_value((const char*)root["Parent"], (int)root["Value"], true);
-      
+
       memcpy(event, (const char*)root["Event"], strlen((const char*)root["Event"]) + 1);
       memcpy(parent, (const char*)root["Parent"], strlen((const char*)root["Parent"]) + 1);
 
@@ -78,7 +89,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
 {  
   if(type == WS_EVT_CONNECT)
   {  
-    Serial.println("WebSocket client connection received");
+    Serial.println("[MicroGUI Remote]: WebSocket client connection received");
   } 
   else if (type == WS_EVT_DATA) 
   {
@@ -86,7 +97,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
   } 
   else if(type == WS_EVT_DISCONNECT)
   {
-    Serial.println("Client disconnected");
+    Serial.println("[MicroGUI Remote]: Client disconnected");
   }
 }
 
@@ -104,6 +115,7 @@ void mgui_remote_init(const char * ssid, const char * password) {
   	
   server.begin();
   
+  Serial.print(F("[MicroGUI Remote]: Connected to WiFi! The IP of this display is "));
   Serial.println(WiFi.localIP());
   remoteInit = true;
 }
@@ -114,9 +126,7 @@ void mgui_remote_init(const char * ssid, const char * password, const char * tex
   mgui_set_text(textfield, WiFi.localIP().toString().c_str());
 }
 
+/* Broadcast a WebSocket message */
 void mgui_send(const char * msg) {
   ws.textAll(msg);
 }
-
-
-// I need a function that will send the document first and then the states of all objects

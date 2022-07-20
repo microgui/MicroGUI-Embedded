@@ -79,6 +79,8 @@ void mgui_set_value(const char * obj_name, int value);
 void mgui_set_text(const char * obj_name, const char * text, bool send);
 void mgui_set_text(const char * obj_name, const char * text);
 
+int mgui_get_value(const char * obj_name);
+
 bool mgui_compare(const char * string1, const char * string2);
 
 /* Display functions */
