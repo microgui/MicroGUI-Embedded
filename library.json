@@ -1,0 +1,49 @@
+{
+    "name": "MicroGUI Embedded",
+    "description": "Library for deploying GUIs created with MicroGUI on embedded displays",
+    "keywords": "gui,embedded,display",
+    "authors": {
+        "name": "Linus Johansson",
+        "maintainer": true
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/microgui/MicroGUI-Embedded.git"
+    },
+    "version": "1.0.0",
+    "license": "MIT",
+    "frameworks": "arduino",
+    "platforms": [
+        "espressif32"
+    ],
+    "dependencies": [
+        {
+            "name": "ESPAsyncWebServer",
+            "version": "https://github.com/me-no-dev/ESPAsyncWebServer.git",
+            "platforms": "espressif32"
+        },
+        {
+            "owner": "lvgl",
+            "name": "lvgl",
+            "version": "^8.2.0"
+        },
+        {
+            "owner": "lovyan03",
+            "name": "LovyanGFX",
+            "version": "^0.4.17"
+        },
+        {
+            "owner": "bblanchon",
+            "name": "ArduinoJson",
+            "version": "^6.19.4"
+        },
+        {
+            "name": "LinkedList",
+            "version": "https://github.com/ivanseidel/LinkedList.git"
+        },
+        {
+            "name": "LinkedList",
+            "version": "https://github.com/ivanseidel/LinkedList.git"
+        }
+    ]
+}
