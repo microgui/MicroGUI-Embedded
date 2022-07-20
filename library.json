@@ -40,10 +40,6 @@
         {
             "name": "LinkedList",
             "version": "https://github.com/ivanseidel/LinkedList.git"
-        },
-        {
-            "name": "LinkedList",
-            "version": "https://github.com/ivanseidel/LinkedList.git"
         }
     ]
 }
