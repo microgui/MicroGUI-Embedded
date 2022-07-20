@@ -37,7 +37,7 @@ static lv_color_t buf[4800];
 
 /* Variables/objects for MicroGUI events */
 static MGUI_event * default_event = new MGUI_event("Default", "None", 0);
-static MGUI_object * noneObject = new MGUI_object(new lv_obj_t, "None", "None", "None");
+static MGUI_object * none_object = new MGUI_object(new lv_obj_t, "None", "None", "None");
 MGUI_event * latest;
 bool newEvent = false;
 
@@ -312,7 +312,7 @@ MGUI_object * mgui_find_object(const char * obj_name, LinkedList<MGUI_object*> *
       return list->get(i);
     }
   }
-  return noneObject;
+  return none_object;
 }
 
 /* Returns true if strings are equal and false if not, for strings less than 100 characters */
@@ -404,6 +404,31 @@ void mgui_set_text(const char * obj_name, const char * text, bool send) {
     Serial.print(F("Could not change the text of "));
     Serial.print(F(obj_name));
     return;
+  }
+}
+
+int mgui_get_value(const char * obj_name) {
+  MGUI_object * object = mgui_find_object(obj_name, &sliders);
+  if(strcmp(object->getType(), "None") == 0) {
+    object = mgui_find_object(obj_name, &switches);
+  }
+  if(strcmp(object->getType(), "None") == 0) {
+    object = mgui_find_object(obj_name, &checkboxes);
+  }
+
+  if(strcmp(object->getType(), "Slider") == 0) {
+    return lv_slider_get_value(object->getObject());
+  }
+  else if(strcmp(object->getType(), "Switch") == 0) {
+    return (int)lv_obj_get_state(object->getObject()) & LV_STATE_CHECKED ? 1 : 0;
+  }
+  else if(strcmp(object->getType(), "Checkbox") == 0) {
+    return (int)lv_obj_get_state(object->getObject()) & LV_STATE_CHECKED ? 1 : 0;
+  }
+  else {
+    Serial.print(F("Could not get the value of "));
+    Serial.print(F(obj_name));
+    return 0;
   }
 }
 
