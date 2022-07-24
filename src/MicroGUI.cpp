@@ -191,15 +191,15 @@ void mgui_init(char json[], int rotation) {
   lv_indev_drv_register(&indev_drv);
 
   mgui_render(document);
-
-  mgui_run();
-  delay(5);
-  mgui_run();
 }
 
 /* Let the display do its' work, returns a MicroGUI event */
 MGUI_event * mgui_run() {
   lv_timer_handler();
+
+  if(getRemoteInit()) {
+    mgui_run_captive();
+  }
 
   if(newEvent) {      // Only return new events
     newEvent = false;
