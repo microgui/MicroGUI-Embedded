@@ -40,7 +40,16 @@ char IPTextField[100];    // Name of textfield to display IP on when connected
 /* Class for handling requests to captive portal */
 class CaptiveRequestHandler : public AsyncWebHandler {
 public:
-  CaptiveRequestHandler() {}
+  CaptiveRequestHandler() {
+    /* THIS IS WHERE YOU CAN PLACE HTTP CALLS, if needed in the future 
+    server.on("/example", HTTP_GET, [](AsyncWebServerRequest *request) {
+      AsyncResponseStream *response = request->beginResponseStream("text/html");
+      response->print("<!DOCTYPE html><html><head><title>MicroGUI WiFi portal</title></head><body>");
+      response->print("<h1>Hello</h1>");
+      response->print("</body></html>");
+      request->send(response);
+    });*/
+  }
   virtual ~CaptiveRequestHandler() {}
 
   bool canHandle(AsyncWebServerRequest *request) {
@@ -80,7 +89,11 @@ public:
         else {
           Serial.println("[MicroGUI Remote]: Captive portal requested!");
           AsyncResponseStream *response = request->beginResponseStream("text/html");
-          response->print("<!DOCTYPE html><html><head><title>MicroGUI WiFi portal</title></head><body>");
+          response->print("<!DOCTYPE html><html><head><title>MicroGUI WiFi portal</title>");
+          response->print("<meta name='viewport' content='width=device-width, initial-scale=1'>");
+          response->print("<style> body { display: flex; flex-direction: column; align-items: center; text-align: center; } form { display: flex; flex-direction: column; align-items: center; font-size: 1.5rem; } </style>");
+          response->print("</head><body>");
+          response->print("<h1>MicroGUI WiFi portal</h1><h2>Enter your WiFi network's credentials below</h2>");
           response->print("<form action='/' method='GET'><label>SSID: </label><input id='ssid' name='ssid' length=32><label>Password: </label><input id='pass' name='pass' length=64><input type='submit' value='submit'></form>");
           response->print("</body></html>");
           request->send(response);
@@ -100,12 +113,14 @@ void wifiOnConnect() {
   Serial.println(WiFi.localIP());
   WiFi.mode(WIFI_MODE_STA);     // Close AP mode
   ap_on = false;
+  mgui_hide_border();
   mgui_set_text(IPTextField, WiFi.localIP().toString().c_str());
 }
 
 /* When WiFi disconnects */
 void wifiOnDisconnect() {
   Serial.println("[MicroGUI Remote]: STA Disconnected");
+  mgui_show_border();
   mgui_set_text(IPTextField, "IP: N/A");
   
   if(!ap_on) {

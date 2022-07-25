@@ -60,6 +60,7 @@ extern char document[];
 
 /* MicroGUI functions */
 void mgui_parse(char json[]);
+void mgui_init();
 void mgui_init(char json[]);
 void mgui_init(char json[], int rotation);
 void mgui_render(char json[]);
@@ -72,6 +73,10 @@ void mgui_render_switch(JsonPair kv, JsonObject root);
 void mgui_render_slider(JsonPair kv, JsonObject root);
 void mgui_render_checkbox(JsonPair kv, JsonObject root);
 void mgui_render_textfield(JsonPair kv, JsonObject root);
+
+void mgui_render_border();
+void mgui_show_border();
+void mgui_hide_border();
 
 // Return void for now, but may want to return error in the future??
 void mgui_set_value(const char * obj_name, int value, bool send);

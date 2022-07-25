@@ -142,6 +142,16 @@ void mgui_parse(char json[]) {
   doc.clear();
 }
 
+/* Initialize display for use with MicroGUI and render either a stored or the default GUI */ 
+void mgui_init() {
+  // TODO: Check for a stored GUI
+  // Set that as the main GUI document, else set the default GUI
+
+  // This is the default GUI
+  char json[] = "{\"ROOT\":{\"type\":{\"resolvedName\":\"CanvasArea\"},\"isCanvas\":true,\"props\":{\"id\":\"canvasElement\",\"width\":480,\"height\":320,\"background\":{\"r\":0,\"g\":0,\"b\":0,\"a\":1}},\"displayName\":\"Canvas\",\"custom\":{},\"hidden\":false,\"nodes\":[\"Textfield_2\",\"Textfield_3\",\"Textfield_4\",\"Button_1\",\"Switch_1\",\"Slider_1\",\"Checkbox_1\"],\"linkedNodes\":{}},\"Textfield_2\":{\"type\":{\"resolvedName\":\"Textfield\"},\"isCanvas\":false,\"props\":{\"text\":\"Welcome to MicroGUI v1.0\",\"fontSize\":15,\"textAlign\":\"left\",\"fontWeight\":500,\"width\":40,\"height\":30,\"color\":{\"r\":248,\"g\":231,\"b\":28,\"a\":1},\"pageX\":147,\"pageY\":41},\"displayName\":\"Textfield\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Textfield_3\":{\"type\":{\"resolvedName\":\"Textfield\"},\"isCanvas\":false,\"props\":{\"text\":\"This default screen is shown because no other GUI was found\",\"fontSize\":15,\"textAlign\":\"left\",\"fontWeight\":500,\"width\":40,\"height\":30,\"color\":{\"r\":255,\"g\":255,\"b\":255,\"a\":1},\"pageX\":21,\"pageY\":95},\"displayName\":\"Textfield\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Textfield_4\":{\"type\":{\"resolvedName\":\"Textfield\"},\"isCanvas\":false,\"props\":{\"text\":\"Have a look at the tutorials to get started with your own GUI\",\"fontSize\":15,\"textAlign\":\"left\",\"fontWeight\":500,\"width\":40,\"height\":30,\"color\":{\"r\":255,\"g\":255,\"b\":255,\"a\":1},\"pageX\":24,\"pageY\":129},\"displayName\":\"Textfield\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Button_1\":{\"type\":{\"resolvedName\":\"Button\"},\"isCanvas\":false,\"props\":{\"text\":\"Hello\",\"size\":\"small\",\"variant\":\"contained\",\"background\":{\"r\":63,\"g\":81,\"b\":181,\"a\":1},\"color\":{\"r\":255,\"g\":255,\"b\":255,\"a\":1},\"event\":\"Hello\",\"pageX\":209,\"pageY\":192},\"displayName\":\"Button\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Switch_1\":{\"type\":{\"resolvedName\":\"Switch\"},\"isCanvas\":false,\"props\":{\"state\":true,\"size\":\"small\",\"color\":{\"r\":126,\"g\":211,\"b\":33,\"a\":1},\"event\":\"\",\"pageX\":90,\"pageY\":197},\"displayName\":\"Switch\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Slider_1\":{\"type\":{\"resolvedName\":\"Slider\"},\"isCanvas\":false,\"props\":{\"size\":\"small\",\"width\":300,\"value\":50,\"min\":0,\"max\":100,\"color\":{\"r\":80,\"g\":227,\"b\":194,\"a\":1},\"valueLabelDisplay\":\"auto\",\"event\":\"\",\"pageX\":84,\"pageY\":262},\"displayName\":\"Slider\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Checkbox_1\":{\"type\":{\"resolvedName\":\"Checkbox\"},\"isCanvas\":false,\"props\":{\"state\":true,\"size\":\"small\",\"color\":{\"r\":250,\"g\":112,\"b\":112,\"a\":1},\"event\":\"\",\"pageX\":361,\"pageY\":201},\"displayName\":\"Checkbox\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}}}";
+  mgui_init(json);
+}
+
 /* Initialize display for use with MicroGUI and render GUI, without specifying display orientation */
 void mgui_init(char json[]) {
   if(!screenWidth) mgui_parse(json);
@@ -402,7 +412,7 @@ void mgui_set_text(const char * obj_name, const char * text, bool send) {
   } 
   else {
     Serial.print(F("Could not change the text of "));
-    Serial.print(F(obj_name));
+    Serial.println(obj_name);
     return;
   }
 }
@@ -600,6 +610,40 @@ void mgui_render_textfield(JsonPair kv, JsonObject root) {
   lv_obj_set_style_text_color(textfield, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
 }
 
+lv_obj_t * border;
+bool border_vis = false;
+
+void mgui_render_border() {
+  /*Create an array for the points of the line*/
+  static lv_point_t line_points[] = { {4, 4}, {476, 4}, {476, 316}, {4, 316}, {4, 4} };
+
+  /*Create style*/
+  static lv_style_t style_line;
+  lv_style_init(&style_line);
+  lv_style_set_line_width(&style_line, 4);
+  lv_style_set_line_color(&style_line, lv_palette_main(LV_PALETTE_RED));
+  lv_style_set_line_rounded(&style_line, true);
+
+  /*Create a line and apply the new style*/
+  border = lv_line_create(lv_scr_act());
+  lv_line_set_points(border, line_points, 5);     /*Set the points*/
+  lv_obj_add_style(border, &style_line, 0);
+  lv_obj_center(border);
+}
+
+void mgui_show_border() {
+  if(!border_vis) {
+    mgui_render_border();
+    border_vis = true;
+  }
+}
+
+void mgui_hide_border() {
+  if(border_vis) {
+    lv_obj_del(border);
+    border_vis = false;
+  }
+}
 
 /** Display functions */
 
