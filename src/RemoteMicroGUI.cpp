@@ -162,13 +162,19 @@ void WiFiEvent(WiFiEvent_t event) {
 /* WebSocket message handler */
 void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
-  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+
+  static bool new_doc = false;
+  // char *new_document;
+  // int new_doc_index = 0;
+  static String new_document;
+
+  if(info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
 
     String message = (char*)data;
 
     /* If document is requested, update the document and send it in chunks */
-    if (strcmp((char*)data, "documentRequest") == 0) {
+    if(strcmp((char*)data, "documentRequest") == 0) {
       Serial.print(F("[MicroGUI Remote]: Document requested by WebSocket client "));
       Serial.println(client->id());
       // Fetch all the latest values/states
@@ -188,29 +194,49 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
       Serial.println("[MicroGUI Remote]: Document sent!");
     }
 
+    /* If the display is prompted to update the GUI document */
+    else if(strcmp((char*)data, "newDocument") == 0) {
+      Serial.println("[MicroGUI Remote]: Incoming new document!");
+      new_doc = true;
+      ws.text(client->id(), "OK");
+    }
+
+    else if(strcmp((char*)data, "NEW DOCUMENT SENT") == 0) {
+      Serial.println("[MicroGUI Remote]: Entire new document sent, time to render!");
+      mgui_render((char*)new_document.c_str());
+      new_document = "";
+      ws.text(client->id(), "NEW DOCUMENT RECEIVED");
+    }
+
     else {
-      DynamicJsonDocument doc(200);    // Length of JSON plus some slack
-
-      DeserializationError error = deserializeJson(doc, message);
-      if (error) {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.f_str());
-        return;
+      if(new_doc) {
+        new_document += (char*)data;
+        ws.text(client->id(), "OK");
       }
+      else {
+        DynamicJsonDocument doc(200);    // Length of JSON plus some slack
 
-      JsonObject root = doc.as<JsonObject>();
+        DeserializationError error = deserializeJson(doc, message);
+        if (error) {
+          Serial.print(F("deserializeJson() failed: "));
+          Serial.println(error.f_str());
+          return;
+        }
 
-      mgui_set_value((const char*)root["Parent"], (int)root["Value"], true);
+        JsonObject root = doc.as<JsonObject>();
 
-      memcpy(event, (const char*)root["Event"], strlen((const char*)root["Event"]) + 1);
-      memcpy(parent, (const char*)root["Parent"], strlen((const char*)root["Parent"]) + 1);
+        mgui_set_value((const char*)root["Parent"], (int)root["Value"], true);
 
-      delete latest;
-      latest = new MGUI_event(event, parent, (int)root["Value"]);
+        memcpy(event, (const char*)root["Event"], strlen((const char*)root["Event"]) + 1);
+        memcpy(parent, (const char*)root["Parent"], strlen((const char*)root["Parent"]) + 1);
 
-      newEvent = true;
+        delete latest;
+        latest = new MGUI_event(event, parent, (int)root["Value"]);
 
-      doc.clear();
+        newEvent = true;
+
+        doc.clear();
+      }
     }
   }
 }
@@ -220,7 +246,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
   if(type == WS_EVT_CONNECT) {  
     Serial.println("[MicroGUI Remote]: WebSocket client connection received");
   } 
-  else if (type == WS_EVT_DATA) {
+  else if(type == WS_EVT_DATA) {
     handleWebSocketMessage(client, arg, data, len);
   } 
   else if(type == WS_EVT_DISCONNECT) {

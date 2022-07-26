@@ -271,7 +271,7 @@ static void widget_cb(lv_event_t * e) {
 
 /* Render MicroGUI from json */
 void mgui_render(char json[]) {
-  DynamicJsonDocument doc(strnlen(json, 100000)*1.5);    // Length of JSON plus some slack
+  DynamicJsonDocument doc(sizeof(document));    // Length of JSON plus some slack
 
   DeserializationError error = deserializeJson(doc, (const char*)json);
   if(error) {
@@ -312,6 +312,7 @@ void mgui_render(char json[]) {
     }
   }
 
+  Serial.println("[MicroGUI]: GUI successfully rendered!"); 
   doc.clear();
 }
 
