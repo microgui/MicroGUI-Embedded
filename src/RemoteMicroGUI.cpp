@@ -35,7 +35,7 @@ bool remoteInit = false;    // Flag to let non-remote MicroGUI know whether remo
 char event[100];
 char parent[100];
 
-char IPTextField[100];    // Name of textfield to display IP on when connected
+char IPTextField[100] = "default_IP";    // Name of textfield to display IP on when connected
 
 /* Class for handling requests to captive portal */
 class CaptiveRequestHandler : public AsyncWebHandler {
