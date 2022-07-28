@@ -74,7 +74,6 @@ public:
 
           Serial.println("[MicroGUI Remote]: Writing new pass");
           preferences.putString("password", pass->value().c_str());
-          delay(50);
           preferences.end();
 
           AsyncResponseStream *response = request->beginResponseStream("text/html");
@@ -289,8 +288,33 @@ void mgui_remote_init() {
 
 /* Initialize remote MicroGUI and set any textfield to display the IP address of the screen */
 void mgui_remote_init(const char * textfield) {
-  mgui_remote_init();
   memcpy(IPTextField, textfield, strlen(textfield) + 1);
+
+  mgui_remote_init();
+}
+
+void mgui_remote_set_wifi(const char * ssid, const char * password) {
+  preferences.begin("wifi", false);
+  if(!preferences.getString("ssid").equals(ssid)) {
+    wifiSSID = preferences.putString("ssid", ssid);
+  }
+  if(!preferences.getString("password").equals(password)) {
+    wifiPassword = preferences.putString("password", password);
+  }
+  preferences.end();
+}
+
+void mgui_remote_init(const char * ssid, const char * password) {
+  mgui_remote_set_wifi(ssid, password);
+
+  mgui_remote_init();
+}
+
+void mgui_remote_init(const char * ssid, const char * password, const char * textfield) {
+  mgui_remote_set_wifi(ssid, password);
+  memcpy(IPTextField, textfield, strlen(textfield) + 1);
+
+  mgui_remote_init();
 }
 
 /* Returns true if remote MicroGUI has been initialized */
