@@ -10,6 +10,10 @@
 #ifndef RemoteMicroGUI_h
 #define RemoteMicroGUI_h
 
+#include <Preferences.h>
+
+extern Preferences preferences;
+
 /* Remote MicroGUI */
 void mgui_remote_init();
 void mgui_remote_init(const char * textfield);

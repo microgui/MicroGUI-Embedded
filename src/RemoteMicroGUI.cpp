@@ -203,8 +203,10 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
 
     else if(strcmp((char*)data, "NEW DOCUMENT SENT") == 0) {
       Serial.println("[MicroGUI Remote]: Entire new document sent, time to render!");
+      from_persistant = false;
       mgui_render((char*)new_document.c_str());
       new_document = "";
+      new_doc = false;
       ws.text(client->id(), "NEW DOCUMENT RECEIVED");
     }
 

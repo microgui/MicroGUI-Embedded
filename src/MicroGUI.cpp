@@ -51,6 +51,8 @@ LinkedList<MGUI_object*> textfields;
 /* For storing the initial json document internally */
 char document[20000];
 
+bool from_persistant = false;
+
 /* MicroGUI object class functions */
 
 MGUI_object::MGUI_object(lv_obj_t * obj, const char * obj_type, const char * obj_name, const char * obj_event) {
@@ -125,7 +127,7 @@ void mgui_parse(char json[]) {
   //document = json;    // Store a reference to the GUI document
   memcpy(document, json, strlen(json));
 
-  DynamicJsonDocument doc(strnlen(document, 100000)*1.5);    // Length of JSON plus some slack
+  DynamicJsonDocument doc(sizeof(document));    // Length of JSON plus some slack
 
   DeserializationError error = deserializeJson(doc, (const char*)document);
   if(error) {
@@ -145,7 +147,15 @@ void mgui_parse(char json[]) {
 /* Initialize display for use with MicroGUI and render either a stored or the default GUI */ 
 void mgui_init() {
   // TODO: Check for a stored GUI
+  preferences.begin("gui", false);
+  String temp_doc = preferences.getString("main", "none");           // SSID and Password stored in non-volatile storage
+  preferences.end();
   // Set that as the main GUI document, else set the default GUI
+  if(!temp_doc.equals("none")) {
+    from_persistant = true;
+    mgui_init((char*)(temp_doc.c_str()));
+    return;
+  }
 
   // This is the default GUI
   char json[] = "{\"ROOT\":{\"type\":{\"resolvedName\":\"CanvasArea\"},\"isCanvas\":true,\"props\":{\"id\":\"canvasElement\",\"width\":480,\"height\":320,\"background\":{\"r\":0,\"g\":0,\"b\":0,\"a\":1}},\"displayName\":\"Canvas\",\"custom\":{},\"hidden\":false,\"nodes\":[\"Textfield_2\",\"Textfield_3\",\"Textfield_4\",\"Button_1\",\"Switch_1\",\"Slider_1\",\"Checkbox_1\"],\"linkedNodes\":{}},\"Textfield_2\":{\"type\":{\"resolvedName\":\"Textfield\"},\"isCanvas\":false,\"props\":{\"text\":\"Welcome to MicroGUI v1.0\",\"fontSize\":15,\"textAlign\":\"left\",\"fontWeight\":500,\"width\":40,\"height\":30,\"color\":{\"r\":248,\"g\":231,\"b\":28,\"a\":1},\"pageX\":147,\"pageY\":41},\"displayName\":\"Textfield\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Textfield_3\":{\"type\":{\"resolvedName\":\"Textfield\"},\"isCanvas\":false,\"props\":{\"text\":\"This default screen is shown because no other GUI was found\",\"fontSize\":15,\"textAlign\":\"left\",\"fontWeight\":500,\"width\":40,\"height\":30,\"color\":{\"r\":255,\"g\":255,\"b\":255,\"a\":1},\"pageX\":21,\"pageY\":95},\"displayName\":\"Textfield\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Textfield_4\":{\"type\":{\"resolvedName\":\"Textfield\"},\"isCanvas\":false,\"props\":{\"text\":\"Have a look at the tutorials to get started with your own GUI\",\"fontSize\":15,\"textAlign\":\"left\",\"fontWeight\":500,\"width\":40,\"height\":30,\"color\":{\"r\":255,\"g\":255,\"b\":255,\"a\":1},\"pageX\":24,\"pageY\":129},\"displayName\":\"Textfield\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Button_1\":{\"type\":{\"resolvedName\":\"Button\"},\"isCanvas\":false,\"props\":{\"text\":\"Hello\",\"size\":\"small\",\"variant\":\"contained\",\"background\":{\"r\":63,\"g\":81,\"b\":181,\"a\":1},\"color\":{\"r\":255,\"g\":255,\"b\":255,\"a\":1},\"event\":\"Hello\",\"pageX\":209,\"pageY\":192},\"displayName\":\"Button\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Switch_1\":{\"type\":{\"resolvedName\":\"Switch\"},\"isCanvas\":false,\"props\":{\"state\":true,\"size\":\"small\",\"color\":{\"r\":126,\"g\":211,\"b\":33,\"a\":1},\"event\":\"\",\"pageX\":90,\"pageY\":197},\"displayName\":\"Switch\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Slider_1\":{\"type\":{\"resolvedName\":\"Slider\"},\"isCanvas\":false,\"props\":{\"size\":\"small\",\"width\":300,\"value\":50,\"min\":0,\"max\":100,\"color\":{\"r\":80,\"g\":227,\"b\":194,\"a\":1},\"valueLabelDisplay\":\"auto\",\"event\":\"\",\"pageX\":84,\"pageY\":262},\"displayName\":\"Slider\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}},\"Checkbox_1\":{\"type\":{\"resolvedName\":\"Checkbox\"},\"isCanvas\":false,\"props\":{\"state\":true,\"size\":\"small\",\"color\":{\"r\":250,\"g\":112,\"b\":112,\"a\":1},\"event\":\"\",\"pageX\":361,\"pageY\":201},\"displayName\":\"Checkbox\",\"custom\":{},\"parent\":\"ROOT\",\"hidden\":false,\"nodes\":[],\"linkedNodes\":{}}}";
@@ -269,6 +279,30 @@ static void widget_cb(lv_event_t * e) {
   }
 }
 
+void mgui_clear_lists() {
+  for(int i = 0; i < textfields.size(); i++) {
+    delete textfields.get(i);
+  }
+  for(int i = 0; i < buttons.size(); i++) {
+    delete buttons.get(i);
+  }
+  for(int i = 0; i < switches.size(); i++) {
+    delete switches.get(i);
+  }
+  for(int i = 0; i < checkboxes.size(); i++) {
+    delete checkboxes.get(i);
+  }
+  for(int i = 0; i < sliders.size(); i++) {
+    delete sliders.get(i);
+  }
+
+  buttons.clear();
+  switches.clear();
+  sliders.clear();
+  checkboxes.clear();
+  textfields.clear();
+}
+
 /* Render MicroGUI from json */
 void mgui_render(char json[]) {
   DynamicJsonDocument doc(sizeof(document));    // Length of JSON plus some slack
@@ -279,6 +313,8 @@ void mgui_render(char json[]) {
     Serial.println(error.f_str());
     return;
   }
+
+  mgui_clear_lists();
 
   JsonObject root = doc.as<JsonObject>();
 
@@ -312,8 +348,22 @@ void mgui_render(char json[]) {
     }
   }
 
-  Serial.println("[MicroGUI]: GUI successfully rendered!"); 
-  doc.clear();
+  Serial.println("[MicroGUI]: GUI successfully rendered!");
+  
+  if(root["ROOT"]["props"]["persistant"] && !from_persistant) {
+    preferences.begin("gui", false);
+    preferences.clear();
+    
+    uint8_t status = preferences.putString("main", json);
+    if(!status) {
+      Serial.println("[MicroGUI]: GUI was too large to be stored in persistant memory.");
+    } else {
+      Serial.println("[MicroGUI]: Stored new GUI in persistant memory!");
+    }
+
+    delay(50);
+    preferences.end();
+  }
 }
 
 /* Search for an object in a list with corresponding name */
