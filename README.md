@@ -110,16 +110,27 @@ Note: These instructions are specific to the WT32-SC01 display. As more displays
 
 <!-- USAGE -->
 ## Tutorial
-### First test
+### **First test**
 After you've installed both the MicroGUI web application and this library, you are set to create and deploy GUIs.
 
-However, as a quick first test to see that the library installation was successful, copy the template into your main sketch. Hit upload and wait for it to finish. The default GUI should appear prompting you to continue reading the tutorials.
+However, as a quick first test to see that the library installation was successful, copy the template below into your main sketch. Hit upload and wait for it to finish. The default GUI should appear prompting you to continue reading the tutorials.
+
+### Default GUI
+<div align='center'>
+  <a>
+    <img src="images/defaultgui.png" width="400">
+  </a>
+  <p>This is the GUI which is rendered by default.</p>
+</div>
+
+### Template
+This is all the boilerplate code needed to run MicroGUI Embedded. You can continue using this template as a base for any new projects you create with MicroGUI.
 ```cpp
 #include <MicroGUI.h>
 //#include <RemoteMicroGUI.h>     // Uncomment if you want to use MicroGUI Remote features
 
 void setup() {
-  Serial.begin(115200);
+  //Serial.begin(115200);         // Recommended! MicroGUI will print useful messages
 
   mgui_init();
   //mgui_remote_init();           // Uncomment if you want to use MicroGUI Remote features
@@ -129,17 +140,135 @@ void loop() {
   MGUI_event * latest = mgui_run();
 }
 ```
-You can continue using this template as a base for any new projects you create with MicroGUI.
 
-### Second test
-After you've seen that this works, test the MicroGUI Remote features by uncommenting the commented out lines of the template. Once the display is programmed you will be presented with the same default GUI except for this time you will see a red border indicating that the display is not connected to any WiFi network. The display is now in AP (access point) mode, meaning you can connect to it like any other WiFi network. If you connect to the display's AP through your phone, you will be served a captive portal where you can enter WiFi network credentials for the display to connect to. If you connect through your computer you have to browse to [http://192.168.4.1/](http://192.168.4.1/) to enter the same website for entering your WiFi network credentials. Once you click the 'Submit' button, the display will start trying to connect to the provided network. If successful, the display will switch to stationary mode, meaning the access point closes.
+
+### **Second test**
+After you've seen that this works, test the MicroGUI Remote features by uncommenting the commented out lines of the template. Once the display is programmed you will be presented with the same default GUI except for this time you will see a red border indicating that the display is not connected to any WiFi network. The display is now in AP (access point) mode, meaning you can connect to it like any other WiFi network. 
+
+When you connect to the display's AP, either with your computer or mobile phone, you will be served a captive portal where you can enter WiFi network credentials for the display to connect to. Note: If the captive portal does not appear, browse to [http://192.168.4.1/](http://192.168.4.1/) to enter the same portal for entering your WiFi network credentials.
+
+Once you've entered your WiFi network credentials and click the 'Submit' button, the display will start trying to connect to the provided network. If successful, the display will switch to stationary mode, meaning the access point closes.
 
 At this point, you are ready to use MicroGUI Remote features including remote monitoring and control as well as GUI upload which you can find in the web application. Your display's IP adress will be displayed on the screen.
 
-## Work flow
-The following section is just a recommended way of working with MicroGUI.
+<p align="right">(<a href="#top">back to top</a>)</p>
 
-## API
+
+
+## User API
+Short explanations of all user available MicroGUI functions. Have a look at the examples to better understand how and where to use them.
+### **MicroGUI Base**
+The "Base" API documentation is a reference to functions available to the user in the MicroGUI Embedded library without any other MicroGUI extensions.
+
+#### **Initialization of MicroGUI**
+
+There are three ways of initializing MicroGUI Embedded to allow for either more or less advanced usage of the library.
+
+**Without any parameters**
+
+This will render either a GUI stored in flash or the default GUI if flash is empty.
+```cpp
+void mgui_init();
+```
+
+**With a hard-coded GUI stored as a string**
+
+Initializing like this will always render the hard-coded GUI on reboot.
+```cpp
+void mgui_init(char json[]);
+```
+
+**With a hard-coded GUI stored as a string & setting display orientation**
+
+This gives the option of setting display orientation.
+```cpp
+void mgui_init(char json[], int rotation);
+```
+There are four different orientations in which the display can be set in. It is recommended to use this typedef:
+```cpp
+typedef enum {
+  MGUI_PORTRAIT,
+  MGUI_LANDSCAPE,
+  MGUI_PORTRAIT_FLIPPED,
+  MGUI_LANDSCAPE_FLIPPED  
+}MGUI_orientation;
+```
+Example:
+```cpp
+char json[] = "...{MicroGUI JSON string}...";
+mgui_init(json, MGUI_LANDSCAPE_FLIPPED);
+```
+
+#### **MicroGUI Run**
+
+Takes care of updating the GUI.
+
+This needs to be placed inside of the loop in order for the GUI to update. The function returns an object pointer to an MGUI_event, which holds information on which object triggered the event, an event id/type as well as a value associated with the event. Take care of this event to make stuff happen on display events.
+```cpp
+MGUI_event * mgui_run();
+```
+
+#### **Compare two strings**
+
+Compares two strings and returns true if they have the same content. Useful for taking care of MGUI events, see examples.
+```cpp
+bool mgui_compare(const char * string1, const char * string2);
+```
+
+#### **Setting a value to an on-screen object**
+
+```cpp
+void mgui_set_value(const char * obj_name, int value);
+```
+
+#### **Setting the text of a label/textfield**
+
+```cpp
+void mgui_set_text(const char * obj_name, const char * text);
+```
+
+#### **Getting the value to an on-screen object**
+```cpp
+int mgui_get_value(const char * obj_name);
+```
+
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+
+### **MicroGUI Remote**
+The "Remote" API documentation is a reference to functions available to the user in the MicroGUI Remote extension.
+
+#### **Initialization of MicroGUI Remote extension**
+
+**Without any parameters**
+
+No hard-coded WiFi credentials.
+```cpp
+void mgui_remote_init();
+```
+
+**With the name of a label**
+
+No hard-coded WiFi credentials. Will set a label/textfield to show the display's IP address. 
+```cpp
+void mgui_remote_init(const char * textfield);
+```
+
+**With hard-coded WiFi credentials**
+
+Works great if you are 100% certain of the available WiFi networks wherever you are putting your display. Will always try to connect to this network on reboot.
+```cpp
+void mgui_remote_init(const char * ssid, const char * password);
+```
+
+**With hard-coded WiFi credentials and the name of a label**
+
+Hard-coded WiFi credentials and sets a label/textfield to show the display's IP address.
+```cpp
+void mgui_remote_init(const char * ssid, const char * password, const char * textfield);
+```
 
 
 <p align="right">(<a href="#top">back to top</a>)</p>
