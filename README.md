@@ -110,6 +110,7 @@ Note: These instructions are specific to the WT32-SC01 display. As more displays
 
 <!-- USAGE -->
 ## Tutorial
+One of the many beauties of MicroGUI 😉 is the fact that you **DO NOT** have to touch any code to get started with making and testing your GUIs. Sure, you have to copy & paste some code as well as upload it to your display, but you don't have to do any coding yourself. Follow the steps below to see how easy MicroGUI is to use.
 ### **First test**
 After you've installed both the MicroGUI web application and this library, you are set to create and deploy GUIs.
 
@@ -150,6 +151,26 @@ When you connect to the display's AP, either with your computer or mobile phone,
 Once you've entered your WiFi network credentials and click the 'Submit' button, the display will start trying to connect to the provided network. If successful, the display will switch to stationary mode, meaning the access point closes.
 
 At this point, you are ready to use MicroGUI Remote features including remote monitoring and control as well as GUI upload which you can find in the web application. Your display's IP adress will be displayed on the screen.
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+## Examples
+
+The examples located in the "[examples](https://github.com/microgui/MicroGUI-Embedded/tree/main/examples)" folder are there to demonstrate how MicroGUI can be used.
+
+In order to test an example, simply copy the example code into your own main sketch and upload it to your display.
+
+<div align='center' style='display:flex; justify-content:center;'>
+  <div style='margin: auto 10px'>
+    <img src="images/example1.png" width="400">
+    <p>Example 1</p>
+  </div>
+  <div style='margin: auto 10px'>
+    <img src="images/example2.png" width="250">
+    <p>Example 2</p>
+  </div>
+</div>
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -236,7 +257,6 @@ int mgui_get_value(const char * obj_name);
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
-
 ### **MicroGUI Remote**
 The "Remote" API documentation is a reference to functions available to the user in the MicroGUI Remote extension.
 
@@ -272,6 +292,7 @@ void mgui_remote_init(const char * ssid, const char * password, const char * tex
 
 
 <p align="right">(<a href="#top">back to top</a>)</p>
+
 
 <!-- CONTRIBUTING -->
 ## Contributing
