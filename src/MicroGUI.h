@@ -3,7 +3,7 @@
 //
 //   Utilized libraries: LovyanGFX, LVGL, ArduinoJSON, LinkedList
 // 
-//   written by Linus Johansson, 2022 @ Plejd
+//   written by Linus Johansson 2022 for MicroGUI
 //
 
 #ifndef MicroGUI_h
@@ -47,6 +47,7 @@ class MGUI_event {
     int getValue();
 };
 
+/* Display orientations */
 typedef enum {
   MGUI_PORTRAIT,
   MGUI_LANDSCAPE,

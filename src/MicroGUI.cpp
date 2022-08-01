@@ -3,7 +3,7 @@
 //
 //   Utilized libraries: LovyanGFX, LVGL, ArduinoJSON, LinkedList
 // 
-//   written by Linus Johansson, 2022 @ Plejd
+//   written by Linus Johansson 2022 for MicroGUI
 //
 
 #include <Arduino.h>
@@ -52,6 +52,10 @@ LinkedList<MGUI_object*> textfields;
 char document[20000];
 
 bool from_persistant = false;
+
+/* Border for indicating disconnected WiFI, may be used for other applications as well */
+lv_obj_t * border;
+bool border_vis = false;
 
 /* MicroGUI object class functions */
 
@@ -124,10 +128,9 @@ int MGUI_event::getValue() {
 
 /* Parse json for important data in the beginning */
 void mgui_parse(char json[]) {
-  //document = json;    // Store a reference to the GUI document
-  memcpy(document, json, strlen(json));
+  memcpy(document, json, strlen(json));   // Store a copy of the GUI document
 
-  DynamicJsonDocument doc(sizeof(document));    // Length of JSON plus some slack
+  DynamicJsonDocument doc(sizeof(document));
 
   DeserializationError error = deserializeJson(doc, (const char*)document);
   if(error) {
@@ -138,6 +141,7 @@ void mgui_parse(char json[]) {
 
   JsonObject root = doc.as<JsonObject>();
 
+  // Important data
   screenWidth = root["ROOT"]["props"]["width"];
   screenHeight = root["ROOT"]["props"]["height"];
 
@@ -146,11 +150,10 @@ void mgui_parse(char json[]) {
 
 /* Initialize display for use with MicroGUI and render either a stored or the default GUI */ 
 void mgui_init() {
-  // TODO: Check for a stored GUI
   preferences.begin("gui", false);
-  String temp_doc = preferences.getString("main", "none");           // SSID and Password stored in non-volatile storage
+  String temp_doc = preferences.getString("main", "none");    // Get GUI stored in flash
   preferences.end();
-  // Set that as the main GUI document, else set the default GUI
+  // Set that as the main GUI document if it exists, otherwise set the default GUI as main document
   if(!temp_doc.equals("none")) {
     from_persistant = true;
     mgui_init((char*)(temp_doc.c_str()));
@@ -210,13 +213,16 @@ void mgui_init(char json[], int rotation) {
   indev_drv.read_cb = touchpad_read;
   lv_indev_drv_register(&indev_drv);
 
+  // Render main document
   mgui_render(document);
 }
 
 /* Let the display do its' work, returns a MicroGUI event */
 MGUI_event * mgui_run() {
+  // LVGL tick function
   lv_timer_handler();
 
+  // Run DNS for captive portal if remote initialized
   if(getRemoteInit()) {
     mgui_run_captive();
   }
@@ -249,6 +255,7 @@ static void widget_cb(lv_event_t * e) {
 
   int value;
 
+  // "Convert" LVGL event to MicroGUI event
   if(code == LV_EVENT_CLICKED) {     // If button short-click, more events available from LVGL, implement later?
     value = 1;
     latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
@@ -271,6 +278,7 @@ static void widget_cb(lv_event_t * e) {
   }
   newEvent = true;
 
+  // Broadcast change if remote is initialized
   if(getRemoteInit()) {
       char buf[100];
       sprintf(buf, "{\"%s\": %i}", ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), value);
@@ -279,7 +287,9 @@ static void widget_cb(lv_event_t * e) {
   }
 }
 
+/* Clear MicroGUI objects lists */
 void mgui_clear_lists() {
+  // Deletes objects from memory
   for(int i = 0; i < textfields.size(); i++) {
     delete textfields.get(i);
   }
@@ -296,6 +306,7 @@ void mgui_clear_lists() {
     delete sliders.get(i);
   }
 
+  // Clears object references from lists
   buttons.clear();
   switches.clear();
   sliders.clear();
@@ -305,7 +316,7 @@ void mgui_clear_lists() {
 
 /* Render MicroGUI from json */
 void mgui_render(char json[]) {
-  DynamicJsonDocument doc(sizeof(document));    // Length of JSON plus some slack
+  DynamicJsonDocument doc(sizeof(document));
 
   DeserializationError error = deserializeJson(doc, (const char*)json);
   if(error) {
@@ -350,15 +361,19 @@ void mgui_render(char json[]) {
 
   Serial.println("[MicroGUI]: GUI successfully rendered!");
   
+  // Try to store GUI in flash if canvas (ROOT) prop "persistant" is true
   if(root["ROOT"]["props"]["persistant"] && !from_persistant) {
     preferences.begin("gui", false);
     preferences.clear();
     
     uint8_t status = preferences.putString("main", json);
     if(!status) {
+      // If unsuccessful
       Serial.println("[MicroGUI]: GUI was too large to be stored in persistant memory.");
     } else {
+      // If successful
       Serial.println("[MicroGUI]: Stored new GUI in persistant memory!");
+      memcpy(document, json, strlen(json));
     }
 
     delay(50);
@@ -366,7 +381,7 @@ void mgui_render(char json[]) {
   }
 }
 
-/* Search for an object in a list with corresponding name */
+/* Search for an object in a list with corresponding name, linear search */
 MGUI_object * mgui_find_object(const char * obj_name, LinkedList<MGUI_object*> *list) {
   for(int i = 0; i < list->size(); i++) {
     if(strcmp(obj_name, list->get(i)->getParent()) == 0) {
@@ -419,7 +434,7 @@ void mgui_set_value(const char * obj_name, int value, bool send) {
     else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
   } 
   else {
-    Serial.print(F("Could not change the value of "));
+    Serial.print(F("[MicroGUI]: Could not change the value of "));
     Serial.println(obj_name);
     return;
   }
@@ -458,18 +473,21 @@ void mgui_set_text(const char * obj_name, const char * text, bool send) {
     }
   }
   else if(strcmp(object->getType(), "Button") == 0) {
-    Serial.println("Updating text of buttons is not yet supported");
+    Serial.println("[MicroGUI]: Updating text of buttons is not yet supported");
     return;
   } 
   else {
-    Serial.print(F("Could not change the text of "));
+    Serial.print(F("[MicroGUI]: Could not change the text of "));
     Serial.println(obj_name);
     return;
   }
 }
 
+/* Get integer value of object */
 int mgui_get_value(const char * obj_name) {
+  // Search for object in relevant lists
   MGUI_object * object = mgui_find_object(obj_name, &sliders);
+  // If not found ( object->getType() == "None" ) , try other list
   if(strcmp(object->getType(), "None") == 0) {
     object = mgui_find_object(obj_name, &switches);
   }
@@ -477,6 +495,7 @@ int mgui_get_value(const char * obj_name) {
     object = mgui_find_object(obj_name, &checkboxes);
   }
 
+  // Getting value from LVGL object types
   if(strcmp(object->getType(), "Slider") == 0) {
     return lv_slider_get_value(object->getObject());
   }
@@ -487,15 +506,15 @@ int mgui_get_value(const char * obj_name) {
     return (int)lv_obj_get_state(object->getObject()) & LV_STATE_CHECKED ? 1 : 0;
   }
   else {
-    Serial.print(F("Could not get the value of "));
+    Serial.print(F("[MicroGUI]: Could not get the value of "));
     Serial.print(F(obj_name));
-    return 0;
+    return -1;
   }
 }
 
 /* Update GUI document with latest values/states */
 void mgui_update_doc() {
-  DynamicJsonDocument doc(strnlen(document, 100000)*1.5);    // Length of JSON plus some slack
+  DynamicJsonDocument doc(sizeof(document));
 
   DeserializationError error = deserializeJson(doc, (const char*)document);
   if(error) {
@@ -506,6 +525,7 @@ void mgui_update_doc() {
 
   JsonObject root = doc.as<JsonObject>();
   
+  // Loop through all objects in all lists and update each object in the json document
   for(int i = 0; i < textfields.size(); i++) {
     root[textfields.get(i)->getParent()]["props"]["text"] = lv_label_get_text(textfields.get(i)->getObject());
   }
@@ -661,12 +681,10 @@ void mgui_render_textfield(JsonPair kv, JsonObject root) {
   lv_obj_set_style_text_color(textfield, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
 }
 
-lv_obj_t * border;
-bool border_vis = false;
-
+/* Render a red border around the GUI to indicate something, currently used for indication disconnected WiFi */
 void mgui_render_border() {
   /*Create an array for the points of the line*/
-  static lv_point_t line_points[] = { {4, 4}, {476, 4}, {476, 316}, {4, 316}, {4, 4} };
+  static lv_point_t line_points[] = { {4, 4}, {(lv_coord_t)(screenWidth-4), 4}, {(lv_coord_t)(screenWidth-4), (lv_coord_t)(screenHeight-4)}, {4, (lv_coord_t)(screenHeight-4)}, {4, 4} };
 
   /*Create style*/
   static lv_style_t style_line;
@@ -682,6 +700,7 @@ void mgui_render_border() {
   lv_obj_center(border);
 }
 
+/* Show border */
 void mgui_show_border() {
   if(!border_vis) {
     mgui_render_border();
@@ -689,12 +708,14 @@ void mgui_show_border() {
   }
 }
 
+/* Hide border */
 void mgui_hide_border() {
   if(border_vis) {
     lv_obj_del(border);
     border_vis = false;
   }
 }
+
 
 /** Display functions */
 
@@ -716,18 +737,14 @@ void touchpad_read(lv_indev_drv_t * indev_driver, lv_indev_data_t * data) {
   uint16_t touchX, touchY;
   bool touched = lcd.getTouch(&touchX, &touchY);
 
-  if (!touched)
-  {
+  if (!touched){
     data->state = LV_INDEV_STATE_REL;
   }
-  else
-  {
+  else{
     data->state = LV_INDEV_STATE_PR;
 
     /*Set the coordinates*/
     data->point.x = touchX;
     data->point.y = touchY;
-
-    // Serial.printf("Touch (x,y): (%03d,%03d)\n",touchX,touchY );
   }
 }

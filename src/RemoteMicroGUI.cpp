@@ -1,10 +1,11 @@
 //
-//   Extension of MicroGUI embedded library to enable remote monitoring and
-//   control of an embedded display running MicroGUI
+//   Extension of MicroGUI Embedded library to enable remote monitoring and
+//   control of an embedded display running MicroGUI as well as
+//   remote GUI upload via the editor
 //
-//   Utilized libraries: ESPAsyncWebServer
+//   Utilized libraries: AsyncTCP, ESPAsyncWebServer
 // 
-//   written by Linus Johansson, 2022 @ Plejd
+//   written by Linus Johansson 2022 for MicroGUI
 //
 
 #include <Arduino.h>
