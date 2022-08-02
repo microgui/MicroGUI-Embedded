@@ -29,32 +29,7 @@
   </p>
 </div>
 
-<!-- TABLE OF CONTENTS -->
-<details>
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li>
-      <a href="#usage">Usage</a>
-      <ul>
-        <li><a href="#tutorial">Tutorial</a></li>
-        <li><a href="#examples">Examples</a></li>
-        <li><a href="#api">API</a></li>
-      </ul>
-    </li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-  </ol>
-</details>
+
 
 <!-- ABOUT THE PROJECT -->
 ## About The Project
@@ -66,8 +41,23 @@
 
 The main purpose of MicroGUI is to offer a convenient solution for makers to implement touch displays in their embedded projects. This library is supposed to be used together with the [web application](https://github.com/microgui/MicroGUI) to enable rapid prototyping of your own GUI.
 
-MicroGUI-Embedded takes care of making your GUI work on embedded displays with minimal coding from your part, so that you can focus on the project at hand instead of having to learn how to program displays. You will also be able to monitor and control your displays remotely by connecting them to your WiFi. Read more about this in the following sections.
+MicroGUI-Embedded takes care of making your GUI work on embedded displays with minimal coding from your part, so that you can focus on the project at hand instead of having to learn how to program displays. You will also be able to monitor and control your displays remotely by connecting them to your WiFi with the MicroGUI Remote extension. Read more about this in the following sections.
 
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+## Features
+### MicroGUI-Embedded Core
+* Easily render a GUI created with the MicroGUI web application
+* Provides a touch interface to GUI objects
+* Allows for event-driven main sketch
+* Very little boilerplate code needed to get started
+
+### MicroGUI-Embedded Remote extension
+* Remote monitoring & control of GUI
+* Rendering remotely uploaded GUIs on the fly
+* Non-blocking WiFi handling
+* Automatic connection to known WiFi network
+* Custom light-weight captive portal for entering WiFi network credentials
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
