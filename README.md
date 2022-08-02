@@ -178,8 +178,8 @@ In order to test an example, simply copy the example code into your own main ske
 
 ## User API
 Short explanations of all user available MicroGUI functions. Have a look at the examples to better understand how and where to use them.
-### **MicroGUI Base**
-The "Base" API documentation is a reference to functions available to the user in the MicroGUI Embedded library without any other MicroGUI extensions.
+### **MicroGUI Core**
+The "Core" API documentation is a reference to functions available to the user in the MicroGUI Embedded library without any other MicroGUI extensions.
 
 #### **Initialization of MicroGUI**
 
