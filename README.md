@@ -72,7 +72,18 @@ MicroGUI-Embedded takes care of making your GUI work on embedded displays with m
 
 
 ## Installation
+
+**The instructions in this installation guide are for PlatformIO**
+
 Note: These instructions are specific to the WT32-SC01 display. As more displays are supported by MicroGUI in the future, this section will most likely change.
+
+### PlatformIO registry
+MicroGUI-Embedded is now available from the PlatformIO registry! Click the badge below to learn how to add the library to your project.
+
+<a href="https://registry.platformio.org/libraries/microgui/MicroGUI Embedded/installation"><img src="https://badges.registry.platformio.org/packages/microgui/library/MicroGUI Embedded.svg" alt="PlatformIO Registry" /></a>
+
+Or simply follow the guides below.
+
 ### New project:
 1. Create a new PlatformIO project and select `Espressif ESP32 Dev Module` as development board. Make sure that Arduino is set as framework. For detailed instructions, look [here](https://docs.platformio.org/en/stable/tutorials/espressif32/arduino_debugging_unit_testing.html).
 2. Open the `platformio.ini` and paste the following:
@@ -84,7 +95,7 @@ Note: These instructions are specific to the WT32-SC01 display. As more displays
     platform_packages = framework-arduinoespressif32 @ https://github.com/espressif/arduino-esp32#master
     upload_speed = 921600
     monitor_speed = 115200
-    lib_deps = https://github.com/microgui/MicroGUI-Embedded.git
+    lib_deps = microgui/MicroGUI Embedded@^1.0.0
    ```
    This makes sure that you use the latest Arduino core for the ESP32 as well as adds MicroGUI-Embedded to the list of library dependencies.
 3. That should be all, have fun!
@@ -92,9 +103,17 @@ Note: These instructions are specific to the WT32-SC01 display. As more displays
 ### Existing project:
 1. Simply add MicroGUI-Embedded to your library dependencies, like this: 
    ```ini
-    lib_deps = https://github.com/microgui/MicroGUI-Embedded.git
+    lib_deps = microgui/MicroGUI Embedded@^1.0.0
    ```
 2. Done, enjoy!
+
+
+### Absolute latest changes
+If for some reason you would like the latest changes committed to the library, then add this repository
+
+```ini
+    lib_deps = https://github.com/microgui/MicroGUI-Embedded.git
+```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 

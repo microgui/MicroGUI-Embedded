@@ -2,10 +2,16 @@
     "name": "MicroGUI Embedded",
     "description": "Library for deploying GUIs created with MicroGUI on embedded displays",
     "keywords": "gui,embedded,display",
-    "authors": {
-        "name": "Linus Johansson",
-        "maintainer": true
-    },
+    "authors": [
+        {
+            "name": "MicroGUI",
+            "maintainer": true
+        },
+        {
+            "name": "Linus Johansson",
+            "maintainer": true
+        }
+    ],
     "repository": {
         "type": "git",
         "url": "https://github.com/microgui/MicroGUI-Embedded.git"
