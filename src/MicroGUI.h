@@ -55,43 +55,38 @@ typedef enum {
   MGUI_LANDSCAPE_FLIPPED  
 }MGUI_orientation;
 
+/* Variables used in MicroGUI Core and extensions */
+
 extern MGUI_event * latest;
-extern bool newEvent;
+extern bool new_event;
 extern char document[];
 extern bool from_persistant;
 
 /* MicroGUI functions */
-void mgui_parse(char json[]);
+
 void mgui_init();
 void mgui_init(char json[]);
 void mgui_init(char json[], int rotation);
+
 void mgui_render(char json[]);
+
 MGUI_event * mgui_run();
+
 void mgui_update_doc();
 
-void mgui_render_canvas(JsonPair kv, JsonObject root);
-void mgui_render_button(JsonPair kv, JsonObject root);
-void mgui_render_switch(JsonPair kv, JsonObject root);
-void mgui_render_slider(JsonPair kv, JsonObject root);
-void mgui_render_checkbox(JsonPair kv, JsonObject root);
-void mgui_render_textfield(JsonPair kv, JsonObject root);
-
-void mgui_render_border();
 void mgui_show_border();
 void mgui_hide_border();
 
-// Return void for now, but may want to return error in the future??
+bool mgui_compare(const char * string1, const char * string2);
+
+// Set value/text of components. Return void for now but may want to return error in the future??
+
 void mgui_set_value(const char * obj_name, int value, bool send);
 void mgui_set_value(const char * obj_name, int value);
+
 void mgui_set_text(const char * obj_name, const char * text, bool send);
 void mgui_set_text(const char * obj_name, const char * text);
 
 int mgui_get_value(const char * obj_name);
-
-bool mgui_compare(const char * string1, const char * string2);
-
-/* Display functions */
-void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
-void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data);
 
 #endif

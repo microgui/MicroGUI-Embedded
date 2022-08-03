@@ -194,7 +194,7 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
       Serial.println("[MicroGUI Remote]: Document sent!");
     }
 
-    /* If the display is prompted to update the GUI document */
+    /* If the display is prompted to receive a new GUI document */
     else if(strcmp((char*)data, "newDocument") == 0) {
       Serial.println("[MicroGUI Remote]: Incoming new document!");
       new_doc = true;
@@ -235,7 +235,7 @@ void handleWebSocketMessage(AsyncWebSocketClient * client, void *arg, uint8_t *d
         delete latest;
         latest = new MGUI_event(event, parent, (int)root["Value"]);
 
-        newEvent = true;
+        new_event = true;
 
         doc.clear();
       }

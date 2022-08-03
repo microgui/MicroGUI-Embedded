@@ -15,7 +15,7 @@
 
 extern Preferences preferences;
 
-/* Remote MicroGUI */
+/* MicroGUI Remote functions */
 void mgui_remote_init();
 void mgui_remote_init(const char * textfield);
 void mgui_remote_init(const char * ssid, const char * password);
@@ -23,7 +23,9 @@ void mgui_remote_init(const char * ssid, const char * password, const char * tex
 bool getRemoteInit();
 
 void mgui_send(const char * msg);
+
 void mgui_run_captive();
+
 bool mgui_remote_connected();
 
 #endif

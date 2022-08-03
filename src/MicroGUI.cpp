@@ -39,7 +39,7 @@ static lv_color_t buf[4800];
 static MGUI_event * default_event = new MGUI_event("Default", "None", 0);
 static MGUI_object * none_object = new MGUI_object(new lv_obj_t, "None", "None", "None");
 MGUI_event * latest;
-bool newEvent = false;
+bool new_event = false;
 
 /* Linked lists for storing object pointers, for later access */
 LinkedList<MGUI_object*> buttons;
@@ -124,7 +124,20 @@ int MGUI_event::getValue() {
 }
 
 
-/* MicroGUI functions */
+/* MicroGUI function prototypes */
+void mgui_parse(char json[]);
+
+void mgui_render_canvas(JsonPair kv, JsonObject root);
+void mgui_render_button(JsonPair kv, JsonObject root);
+void mgui_render_switch(JsonPair kv, JsonObject root);
+void mgui_render_slider(JsonPair kv, JsonObject root);
+void mgui_render_checkbox(JsonPair kv, JsonObject root);
+void mgui_render_textfield(JsonPair kv, JsonObject root);
+
+/* Display function prototypes */
+void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
+void touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data);
+
 
 /* Parse json for important data in the beginning */
 void mgui_parse(char json[]) {
@@ -227,8 +240,8 @@ MGUI_event * mgui_run() {
     mgui_run_captive();
   }
 
-  if(newEvent) {      // Only return new events
-    newEvent = false;
+  if(new_event) {      // Only return new events
+    new_event = false;
 
     #if 1
     Serial.println("-----------------------------------------");
@@ -276,7 +289,7 @@ static void widget_cb(lv_event_t * e) {
                               value);
     }
   }
-  newEvent = true;
+  new_event = true;
 
   // Broadcast change if remote is initialized
   if(getRemoteInit()) {
