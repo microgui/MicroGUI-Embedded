@@ -84,7 +84,7 @@ MicroGUI-Embedded is now available from the PlatformIO registry! Click the badge
 
 Or simply follow the guides below.
 
-### New project:
+### New project
 1. Create a new PlatformIO project and select `Espressif ESP32 Dev Module` as development board. Make sure that Arduino is set as framework. For detailed instructions, look [here](https://docs.platformio.org/en/stable/tutorials/espressif32/arduino_debugging_unit_testing.html).
 2. Open the `platformio.ini` and paste the following:
    ```ini
@@ -100,7 +100,7 @@ Or simply follow the guides below.
    This makes sure that you use the latest Arduino core for the ESP32 as well as adds MicroGUI-Embedded to the list of library dependencies.
 3. That should be all, have fun!
 
-### Existing project:
+### Existing project
 1. Simply add MicroGUI-Embedded to your library dependencies, like this: 
    ```ini
     lib_deps = microgui/MicroGUI Embedded@^1.0.0
@@ -109,7 +109,7 @@ Or simply follow the guides below.
 
 
 ### Absolute latest changes
-If for some reason you would like the latest changes committed to the library, then add this repository
+If for some reason you would like the latest changes committed to the library repository instead of the latest release, then add this as a library dependency instead of the above:
 
 ```ini
     lib_deps = https://github.com/microgui/MicroGUI-Embedded.git
