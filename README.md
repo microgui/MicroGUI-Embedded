@@ -161,6 +161,13 @@ Once you've entered your WiFi network credentials and click the 'Submit' button,
 
 At this point, you are ready to use MicroGUI Remote features including remote monitoring and control as well as GUI upload which you can find in the web application. Your display's IP adress will be displayed on the screen.
 
+<div align='center'>
+  <a>
+    <img src="https://user-images.githubusercontent.com/73997498/182788389-32714b00-36b3-4edf-90aa-9ec61a71eaf1.jpg" width="400">
+  </a>
+  <p>Captive portal</p>
+</div>
+
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
