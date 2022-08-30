@@ -629,6 +629,16 @@ void mgui_render_switch(JsonPair kv, JsonObject root) {
   lv_obj_set_pos(sw, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
   lv_obj_set_style_bg_color(sw, lv_color_make(188, 188, 188), LV_PART_MAIN | LV_STATE_DEFAULT);
   lv_obj_set_style_bg_color(sw, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), LV_PART_INDICATOR | LV_STATE_CHECKED);
+
+  if(mgui_compare((const char*)root[kv.key()]["props"]["size"], "medium")) {
+    lv_obj_set_height(sw, (lv_coord_t)25);
+    lv_obj_set_width(sw, (lv_coord_t)56);
+    lv_obj_set_style_pad_all(sw, (lv_coord_t)4, LV_PART_KNOB);
+  } else {
+    lv_obj_set_height(sw, (lv_coord_t)20);
+    lv_obj_set_width(sw, (lv_coord_t)44);
+    lv_obj_set_style_pad_all(sw, (lv_coord_t)3, LV_PART_KNOB);
+  }
 }
 
 /* Function for rendering a slider */
