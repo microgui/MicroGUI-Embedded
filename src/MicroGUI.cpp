@@ -273,13 +273,15 @@ static void widget_cb(lv_event_t * e) {
   delete latest;
 
   int value;
+  bool broadcast_event = true;        // Flag for choosing what events to broadcast, default is broadcast all
 
   // "Convert" LVGL event to MicroGUI event
-  if(code == LV_EVENT_CLICKED) {     // If button short-click, more events available from LVGL, implement later?
+  if(code == LV_EVENT_CLICKED) {      // If button short-click, more events available from LVGL, implement later?
     value = 1;
     latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
                             ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
                             value);
+    broadcast_event = false;              // Sending button events is useless since there is no visual change on this event, however may be useful for something else??? Disabled for now..
   }
   else if(code == LV_EVENT_VALUE_CHANGED) {
     if(lv_obj_check_type(object, &lv_slider_class)) {     // If slider
@@ -287,6 +289,7 @@ static void widget_cb(lv_event_t * e) {
       latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
                               ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
                               value);
+      broadcast_event = false;            // Do not try to broadcast all slider value changes to avoid overloading the websocket connection. Only send final slider values, i.e. on slider release
     } 
     else if(lv_obj_check_type(object, &lv_switch_class) || lv_obj_check_type(object, &lv_checkbox_class)) {    // If switch or checkbox
       value = (int)lv_obj_get_state(object) & LV_STATE_CHECKED ? 1 : 0;
@@ -295,14 +298,23 @@ static void widget_cb(lv_event_t * e) {
                               value);
     }
   }
+  else if(code == LV_EVENT_RELEASED) {
+    if(lv_obj_check_type(object, &lv_slider_class)) {     // If slider
+      value = lv_slider_get_value(object);
+      latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
+                              ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
+                              value);
+    } 
+  }
   new_event = true;
 
   // Broadcast change if remote is initialized
   if(getRemoteInit()) {
+    if(broadcast_event) {
       char buf[100];
       sprintf(buf, "{\"%s\": %i}", ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), value);
-      //Serial.println(buf);
       mgui_send(buf);
+    }
   }
 }
 
@@ -653,7 +665,8 @@ void mgui_render_slider(JsonPair kv, JsonObject root) {
 
   sliders.add(m_slider);
   lv_obj_set_user_data(slider, m_slider);
-  lv_obj_add_event_cb(slider, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  lv_obj_add_event_cb(slider, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);   // LV_EVENT_ALL did not work, hence the two callback setups
+  lv_obj_add_event_cb(slider, widget_cb, LV_EVENT_RELEASED, NULL);
 
   // Styling
   lv_obj_set_width(slider, root[kv.key()]["props"]["width"]);
