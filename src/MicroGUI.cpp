@@ -47,6 +47,7 @@ LinkedList<MGUI_object*> switches;
 LinkedList<MGUI_object*> sliders;
 LinkedList<MGUI_object*> checkboxes;
 LinkedList<MGUI_object*> textfields;
+LinkedList<MGUI_object*> dividers;
 
 /* For storing the initial json document internally */
 char document[20000];
@@ -137,6 +138,7 @@ void mgui_render_switch(JsonPair kv, JsonObject root);
 void mgui_render_slider(JsonPair kv, JsonObject root);
 void mgui_render_checkbox(JsonPair kv, JsonObject root);
 void mgui_render_textfield(JsonPair kv, JsonObject root);
+void mgui_render_divider(JsonPair kv, JsonObject root);
 
 /* Display function prototypes */
 void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
@@ -336,6 +338,9 @@ void mgui_clear_lists() {
   for(int i = 0; i < sliders.size(); i++) {
     delete sliders.get(i);
   }
+  for(int i = 0; i < dividers.size(); i++) {
+    delete dividers.get(i);
+  }
 
   // Clears object references from lists
   buttons.clear();
@@ -343,6 +348,7 @@ void mgui_clear_lists() {
   sliders.clear();
   checkboxes.clear();
   textfields.clear();
+  dividers.clear();
 }
 
 /* Render MicroGUI from json */
@@ -387,6 +393,10 @@ void mgui_render(char json[]) {
     // If object is a textfield
     else if(mgui_compare(type, "Textfield")) {
       mgui_render_textfield(kv, root);
+    }
+    // If object is a divider
+    else if(mgui_compare(type, "Divider")) {
+      mgui_render_divider(kv, root);
     }
   }
 
@@ -576,13 +586,13 @@ void mgui_update_doc() {
 
 /* Function for rendering a canvas */
 void mgui_render_canvas(JsonPair kv, JsonObject root) {
-  lv_obj_t *square = lv_obj_create(lv_scr_act());
-  lv_obj_set_size(square, screenWidth, screenHeight);
-  lv_obj_align(square, LV_ALIGN_CENTER, 0, 0);
-  lv_obj_set_style_bg_color(square, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
-  lv_obj_set_style_border_width(square, 0, 0);
-  lv_obj_set_style_border_width(square, 0, 0);
-  lv_obj_set_style_radius(square, 0, 0);
+  lv_obj_t * canvas = lv_obj_create(lv_scr_act());
+  lv_obj_set_size(canvas, screenWidth, screenHeight);
+  lv_obj_align(canvas, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_set_style_bg_color(canvas, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
+  lv_obj_set_style_border_width(canvas, 0, 0);
+  lv_obj_set_style_border_width(canvas, 0, 0);
+  lv_obj_set_style_radius(canvas, 0, 0);
 }
 
 /* Function for rendering a button */
@@ -735,6 +745,68 @@ void mgui_render_textfield(JsonPair kv, JsonObject root) {
   lv_obj_set_style_text_font(textfield, font_list[i], 0);   // Sets font size
 
 }
+
+/* Function for rendering a divider */
+void mgui_render_divider(JsonPair kv, JsonObject root) {
+  lv_obj_t * divider = lv_obj_create(lv_scr_act());
+
+  MGUI_object * m_divider = new MGUI_object;
+  m_divider->setObject(divider);
+  memcpy(m_divider->getType(), (const char*)root[kv.key()]["type"]["resolvedName"], strlen((const char*)root[kv.key()]["type"]["resolvedName"]));
+  memcpy(m_divider->getParent(), kv.key().c_str(), strlen(kv.key().c_str()));
+  memcpy(m_divider->getEvent(), "NoInput", strlen("NoInput"));
+
+  dividers.add(m_divider);
+  lv_obj_set_user_data(divider, m_divider);
+
+  int height = (int)root[kv.key()]["props"]["thickness"];
+  int width = (int)root[kv.key()]["props"]["length"];
+
+  if(mgui_compare(root[kv.key()]["props"]["orientation"], "vertical")) {
+    int temp = height;
+    height = width;
+    width = temp;
+  }
+
+  lv_obj_set_size(divider, width, height);
+  lv_obj_align(divider, LV_ALIGN_TOP_LEFT, (lv_coord_t)root[kv.key()]["props"]["pageX"], (lv_coord_t)root[kv.key()]["props"]["pageY"]);
+  lv_obj_set_style_bg_color(divider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
+  lv_obj_set_style_border_width(divider, 0, 0);
+  lv_obj_set_style_border_width(divider, 0, 0);
+  lv_obj_set_style_radius(divider, 0, 0);
+  lv_obj_set_scrollbar_mode(divider, LV_SCROLLBAR_MODE_OFF);
+}
+
+// Initial attempt for rendering the divider element. This is not a suitable solution at the moment because of a 
+// difference in line origins in MicroGUI Web app and LVGL. In web app origin is top left of object, in LVGL it is middle left.
+// Saved for potential future uses...
+
+// static lv_point_t divider_points[100][2];
+// int divIndex = 0;
+
+// void mgui_render_divider(JsonPair kv, JsonObject root) {
+//   divider_points[divIndex][0] = {(lv_coord_t)root[kv.key()]["props"]["pageX"], (lv_coord_t)((int)root[kv.key()]["props"]["pageY"] + ((int)root[kv.key()]["props"]["thickness"] / 2))};
+//   divider_points[divIndex][1] = {(lv_coord_t)((int)root[kv.key()]["props"]["pageX"] + (int)root[kv.key()]["props"]["length"]), (lv_coord_t)((int)root[kv.key()]["props"]["pageY"] + ((int)root[kv.key()]["props"]["thickness"] / 2))};
+
+//   lv_obj_t * divider = lv_line_create(lv_scr_act());
+
+//   MGUI_object * m_divider = new MGUI_object;
+//   m_divider->setObject(divider);
+//   memcpy(m_divider->getType(), (const char*)root[kv.key()]["type"]["resolvedName"], strlen((const char*)root[kv.key()]["type"]["resolvedName"]));
+//   memcpy(m_divider->getParent(), kv.key().c_str(), strlen(kv.key().c_str()));
+//   memcpy(m_divider->getEvent(), "NoInput", strlen("NoInput"));
+
+//   dividers.add(m_divider);
+//   lv_obj_set_user_data(divider, m_divider);
+
+//   lv_obj_set_style_line_width(divider, (int)root[kv.key()]["props"]["thickness"], 0);
+//   lv_obj_set_style_line_color(divider, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
+//   lv_obj_set_style_pad_all(divider, 0, 0);
+//   lv_obj_set_style_line_rounded(divider, false, 0);
+//   lv_line_set_points(divider, divider_points[divIndex], 2);     /*Set the points*/
+
+//   divIndex++;
+// }
 
 /* Render a red border around the GUI to indicate something, currently used for indication disconnected WiFi */
 void mgui_render_border() {
