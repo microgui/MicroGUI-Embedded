@@ -95,7 +95,7 @@ Or simply follow the guides below.
     platform_packages = framework-arduinoespressif32 @ https://github.com/espressif/arduino-esp32#master
     upload_speed = 921600
     monitor_speed = 115200
-    lib_deps = microgui/MicroGUI Embedded@^1.0.0
+    lib_deps = microgui/MicroGUI Embedded@^1.1.0
    ```
    This makes sure that you use the latest Arduino core for the ESP32 as well as adds MicroGUI-Embedded to the list of library dependencies.
 3. That should be all, have fun!
@@ -103,7 +103,7 @@ Or simply follow the guides below.
 ### Existing project
 1. Simply add MicroGUI-Embedded to your library dependencies, like this: 
    ```ini
-    lib_deps = microgui/MicroGUI Embedded@^1.0.0
+    lib_deps = microgui/MicroGUI Embedded@^1.1.0
    ```
 2. Done, enjoy!
 
@@ -186,6 +186,13 @@ In order to test an example, simply copy the example code into your own main ske
     <img src="images/example2.png" width="250">
     <p>Example 2</p>
   </div>
+</div>
+
+<div align='center'>
+  <a>
+    <img src="images/example4.png" width="400">
+  </a>
+  <p>Simple home automation interface</p>
 </div>
 
 <p align="right">(<a href="#top">back to top</a>)</p>
