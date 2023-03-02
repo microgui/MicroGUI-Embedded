@@ -48,6 +48,7 @@ LinkedList<MGUI_object*> sliders;
 LinkedList<MGUI_object*> checkboxes;
 LinkedList<MGUI_object*> textfields;
 LinkedList<MGUI_object*> dividers;
+LinkedList<MGUI_object*> radiobuttons;
 
 /* For storing the initial json document internally */
 char document[20000];
@@ -139,6 +140,7 @@ void mgui_render_slider(JsonPair kv, JsonObject root);
 void mgui_render_checkbox(JsonPair kv, JsonObject root);
 void mgui_render_textfield(JsonPair kv, JsonObject root);
 void mgui_render_divider(JsonPair kv, JsonObject root);
+void mgui_render_radiobuttons(JsonPair kv, JsonObject root);
 
 /* Display function prototypes */
 void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
@@ -341,6 +343,9 @@ void mgui_clear_lists() {
   for(int i = 0; i < dividers.size(); i++) {
     delete dividers.get(i);
   }
+  for(int i = 0; i < radiobuttons.size(); i++) {
+    delete radiobuttons.get(i);
+  }
 
   // Clears object references from lists
   buttons.clear();
@@ -349,6 +354,7 @@ void mgui_clear_lists() {
   checkboxes.clear();
   textfields.clear();
   dividers.clear();
+  radiobuttons.clear();
 }
 
 /* Render MicroGUI from json */
@@ -397,6 +403,9 @@ void mgui_render(char json[]) {
     // If object is a divider
     else if(mgui_compare(type, "Divider")) {
       mgui_render_divider(kv, root);
+    }
+    else if(mgui_compare(type, "Radiobutton")) {
+      mgui_render_radiobuttons(kv, root);
     }
   }
 
@@ -579,6 +588,10 @@ void mgui_update_doc() {
   for(int i = 0; i < sliders.size(); i++) {
     root[sliders.get(i)->getParent()]["props"]["value"] = lv_slider_get_value(sliders.get(i)->getObject());
   }
+  //Unsure if this is how to do it
+  for(int i = 0; i < radiobuttons.size(); i++) {
+    root[radiobuttons.get(i)->getParent()]["props"]["state"] = (int)lv_obj_get_state(radiobuttons.get(i)->getObject()) & LV_STATE_CHECKED ? 1 : 0;
+  }
 
   serializeJson(root, document);
   doc.clear();
@@ -714,6 +727,64 @@ void mgui_render_checkbox(JsonPair kv, JsonObject root) {
   
   if(mgui_compare((const char*)root[kv.key()]["props"]["size"], "medium")) {
     lv_obj_set_style_text_font(checkbox, font_list[2], 0);   // Sets checkbox size
+  }
+}
+//////////////////////////////////////////////////////////
+/* Dessa ska inte vara här*/
+/* Eller kanske, jag tror inte det, men förmodligen inte*/
+//////////////////////////////////////////////////////////
+
+static lv_style_t style_radio;
+static lv_style_t style_radio_chk;
+
+void radiobutton_create(lv_obj_t * parent, const char * txt){
+    lv_obj_t * obj = lv_checkbox_create(parent);    
+    lv_checkbox_set_text(obj, txt);
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_add_style(obj, &style_radio, LV_PART_INDICATOR);
+    lv_obj_add_style(obj, &style_radio_chk, LV_PART_INDICATOR | LV_STATE_CHECKED);
+    
+}
+////////////////////////////
+
+/*Function for rendering radiobuttons*/
+void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
+  /* Create LVGL object */
+  lv_obj_t * radiobutton = lv_obj_create(lv_scr_act());
+
+  MGUI_object * m_radiobuttons = new MGUI_object;
+  m_radiobuttons->setObject(radiobutton);
+  memcpy(m_radiobuttons->getType(), (const char*)root[kv.key()]["type"]["resolvedName"], strlen((const char*)root[kv.key()]["type"]["resolvedName"]));
+  memcpy(m_radiobuttons->getParent(), kv.key().c_str(), strlen(kv.key().c_str()));
+  memcpy(m_radiobuttons->getEvent(), (const char*)root[kv.key()]["props"]["event"], strlen((const char*)root[kv.key()]["props"]["event"]));
+
+  // Store MGUI_object pointer in linked list
+  radiobuttons.add(m_radiobuttons);
+  lv_obj_set_user_data(radiobutton, m_radiobuttons);
+  lv_obj_add_event_cb(radiobutton, widget_cb, LV_EVENT_CLICKED, NULL);
+
+  /* Create container for the checkboxes */
+  lv_obj_set_flex_flow(radiobutton, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_size(radiobutton, lv_pct(40), lv_pct(60));
+
+  // Styling
+  lv_style_init(&style_radio);
+  lv_style_set_radius(&style_radio, LV_RADIUS_CIRCLE);
+
+  lv_style_init(&style_radio_chk);
+  lv_style_set_bg_img_src(&style_radio_chk, NULL);
+
+  lv_obj_add_style(radiobutton, &style_radio, LV_PART_INDICATOR);
+  lv_obj_add_style(radiobutton, &style_radio_chk, LV_PART_INDICATOR | LV_STATE_CHECKED);
+
+  lv_obj_set_pos(radiobutton, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+
+  uint32_t i;
+  char buf[32];
+
+  for(i = 0; i < 4; i++) {
+      lv_snprintf(buf, sizeof(buf), "A %d", (int)i + 1);
+      radiobutton_create(radiobutton, buf);
   }
 }
 
