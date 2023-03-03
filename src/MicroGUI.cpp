@@ -763,9 +763,13 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
   lv_obj_set_user_data(radiobutton, m_radiobuttons);
   lv_obj_add_event_cb(radiobutton, widget_cb, LV_EVENT_CLICKED, NULL);
 
-  /* Create container for the checkboxes */
+  // Check how many radiobuttons and names
+  uint32_t amount = root[kv.key()]["props"]["amount"];
+  //uint32_t radiobuttons_names[amount];
+
+  /* Create container for the radiobuttons */
   lv_obj_set_flex_flow(radiobutton, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_size(radiobutton, lv_pct(40), lv_pct(60));
+  lv_obj_set_size(radiobutton, lv_pct(40), lv_pct(10 * amount + 8));
 
   // Styling
   lv_style_init(&style_radio);
@@ -782,8 +786,8 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
   uint32_t i;
   char buf[32];
 
-  for(i = 0; i < 4; i++) {
-      lv_snprintf(buf, sizeof(buf), "A %d", (int)i + 1);
+  for(i = 0; i < amount; i++) {
+      lv_snprintf(buf, sizeof(buf), root[kv.key()]["props"]["labelTexts"][i], (int)i + 1);
       radiobutton_create(radiobutton, buf);
   }
 }
