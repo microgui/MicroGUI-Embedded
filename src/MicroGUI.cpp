@@ -765,11 +765,10 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
 
   // Check how many radiobuttons and names
   uint32_t amount = root[kv.key()]["props"]["amount"];
-  //uint32_t radiobuttons_names[amount];
 
-  /* Create container for the radiobuttons */
+  // Create container for the radiobuttons
   lv_obj_set_flex_flow(radiobutton, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_size(radiobutton, lv_pct(40), lv_pct(10 * amount + 8));
+  lv_obj_set_size(radiobutton, lv_pct(40), lv_pct(10 * amount + 18));
 
   // Styling
   lv_style_init(&style_radio);
@@ -781,7 +780,17 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
   lv_obj_add_style(radiobutton, &style_radio, LV_PART_INDICATOR);
   lv_obj_add_style(radiobutton, &style_radio_chk, LV_PART_INDICATOR | LV_STATE_CHECKED);
 
+  // Correct colors
+  lv_obj_set_style_bg_color(radiobutton, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
+  lv_obj_set_style_border_color(radiobutton, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
+  lv_obj_set_style_text_color(radiobutton, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
+  
   lv_obj_set_pos(radiobutton, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+
+  // Label
+  lv_obj_t * label = lv_label_create(radiobutton);
+  const char* text = root[kv.key()]["props"]["text"];
+  lv_label_set_text(label, text);
 
   uint32_t i;
   char buf[32];
