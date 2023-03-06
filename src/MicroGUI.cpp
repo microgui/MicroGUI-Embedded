@@ -781,10 +781,10 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
   lv_obj_add_style(radiobutton, &style_radio_chk, LV_PART_INDICATOR | LV_STATE_CHECKED);
 
   // Correct colors
-  lv_obj_set_style_bg_color(radiobutton, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
-  lv_obj_set_style_border_color(radiobutton, lv_color_make(root[kv.key()]["props"]["background"]["r"], root[kv.key()]["props"]["background"]["g"], root[kv.key()]["props"]["background"]["b"]), 0);
+  lv_obj_set_style_bg_color(radiobutton, lv_color_make(root["ROOT"]["props"]["background"]["r"], root["ROOT"]["props"]["background"]["g"], root["ROOT"]["props"]["background"]["b"]), 0);
+  lv_obj_set_style_border_color(radiobutton, lv_color_make(root["ROOT"]["props"]["background"]["r"], root["ROOT"]["props"]["background"]["g"], root["ROOT"]["props"]["background"]["b"]), 0);
   lv_obj_set_style_text_color(radiobutton, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
-  
+
   lv_obj_set_pos(radiobutton, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
 
   // Label
