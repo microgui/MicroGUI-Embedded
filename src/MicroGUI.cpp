@@ -49,6 +49,7 @@ LinkedList<MGUI_object*> checkboxes;
 LinkedList<MGUI_object*> textfields;
 LinkedList<MGUI_object*> dividers;
 LinkedList<MGUI_object*> radiobuttons;
+LinkedList<MGUI_object*> progressbars;
 
 /* For storing the initial json document internally */
 char document[20000];
@@ -145,6 +146,8 @@ void mgui_render_checkbox(JsonPair kv, JsonObject root);
 void mgui_render_textfield(JsonPair kv, JsonObject root);
 void mgui_render_divider(JsonPair kv, JsonObject root);
 void mgui_render_radiobuttons(JsonPair kv, JsonObject root);
+void mgui_render_progressbar(JsonPair kv, JsonObject root);
+
 
 /* Display function prototypes */
 void display_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p);
@@ -369,6 +372,9 @@ void mgui_clear_lists() {
   for(int i = 0; i < radiobuttons.size(); i++) {
     delete radiobuttons.get(i);
   }
+  for(int i = 0; i < progressbars.size(); i++) {
+    delete progressbars.get(i);
+  }
 
   // Clears object references from lists
   buttons.clear();
@@ -378,6 +384,7 @@ void mgui_clear_lists() {
   textfields.clear();
   dividers.clear();
   radiobuttons.clear();
+  progressbars.clear();
 }
 
 /* Render MicroGUI from json */
@@ -615,6 +622,7 @@ void mgui_update_doc() {
   for(int i = 0; i < radiobuttons.size(); i++) {
     root[radiobuttons.get(i)->getParent()]["props"]["state"] = (int)lv_obj_get_state(radiobuttons.get(i)->getObject()) & LV_STATE_CHECKED ? 1 : 0;
   }
+  // Add for progressbars
 
   serializeJson(root, document);
   doc.clear();
@@ -817,6 +825,23 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
   
   // Make the first checkbox checked
   lv_obj_add_state(lv_obj_get_child(radiobutton, 1), LV_STATE_CHECKED);
+}
+
+/* Function for rendering a progressbar */
+void mgui_render_progressbar(JsonPair kv, JsonObject root) {
+  lv_obj_t * progressbar = lv_bar_create(lv_scr_act());
+  // Create MGUI_object for newly created component
+  MGUI_object * m_progressbar = new MGUI_object;
+  m_progressbar->setObject(progressbar);
+  memcpy(m_progressbar->getType(), (const char*)root[kv.key()]["type"]["resolvedName"], strlen((const char*)root[kv.key()]["type"]["resolvedName"]));
+  memcpy(m_progressbar->getParent(), kv.key().c_str(), strlen(kv.key().c_str()));
+  memcpy(m_progressbar->getEvent(), (const char*)root[kv.key()]["props"]["event"], strlen((const char*)root[kv.key()]["props"]["event"]));
+
+  // Store MGUI_object pointer in linked list
+  progressbars.add(m_progressbar);
+
+  // Store the MGUI_object as user data
+  lv_obj_set_user_data(progressbar, m_progressbar);
 }
 
 /* Function for rendering a textfield */
