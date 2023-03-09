@@ -729,6 +729,35 @@ void mgui_render_checkbox(JsonPair kv, JsonObject root) {
     lv_obj_set_style_text_font(checkbox, font_list[2], 0);   // Sets checkbox size
   }
 }
+
+// Will get changed into existing event handler. 
+
+static void radio_event_handler(lv_event_t * e)
+{
+    uint32_t * active_id = (uint32_t*)lv_event_get_user_data(e);
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * cont = lv_event_get_current_target(e);
+    lv_obj_t * act_cb = lv_event_get_target(e);
+    lv_obj_t * old_cb = lv_obj_get_child(cont, *active_id);
+
+    /*Do nothing if the container was clicked*/
+    if(act_cb == cont) return;
+
+    delete latest;
+
+    lv_obj_clear_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Check the current radio button*/
+
+    int value = (int)lv_obj_get_state(act_cb);
+    
+    latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(act_cb))->getEvent(), 
+                            ((MGUI_object*)lv_obj_get_user_data(act_cb))->getParent(), 
+                            value);
+
+    *active_id = lv_obj_get_index(act_cb);
+    new_event = true;
+}
+
 //////////////////////////////////////////////////////////
 /* Dessa ska inte vara här*/
 /* Eller kanske, jag tror inte det, men förmodligen inte*/
@@ -736,49 +765,48 @@ void mgui_render_checkbox(JsonPair kv, JsonObject root) {
 
 static lv_style_t style_radio;
 static lv_style_t style_radio_chk;
+static uint32_t active_index_1 = 1; // 1 is the first radibutton because we have the label. 
 
-void radiobutton_create(lv_obj_t * parent, const char * txt){
-    lv_obj_t * obj = lv_checkbox_create(parent);    
-    lv_checkbox_set_text(obj, txt);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
-    lv_obj_add_style(obj, &style_radio, LV_PART_INDICATOR);
-    lv_obj_add_style(obj, &style_radio_chk, LV_PART_INDICATOR | LV_STATE_CHECKED);
-    
-}
-////////////////////////////
-
-/*Function for rendering radiobuttons*/
-void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
-  /* Create LVGL object */
-  lv_obj_t * radiobutton = lv_obj_create(lv_scr_act());
-
+void radiobutton_create(lv_obj_t * parent, const char * txt, JsonObject root, JsonPair kv){
+  lv_obj_t * radiobutton = lv_checkbox_create(parent);    
+  lv_checkbox_set_text(radiobutton, txt);
+  lv_obj_add_flag(radiobutton, LV_OBJ_FLAG_EVENT_BUBBLE);
+  lv_obj_add_style(radiobutton, &style_radio, LV_PART_INDICATOR);
+  lv_obj_add_style(radiobutton, &style_radio_chk, LV_PART_INDICATOR | LV_STATE_CHECKED);
+  
+  // Create MGUI object, TODO: Update this to be correct. Type? Parent?
   MGUI_object * m_radiobuttons = new MGUI_object;
   m_radiobuttons->setObject(radiobutton);
   memcpy(m_radiobuttons->getType(), (const char*)root[kv.key()]["type"]["resolvedName"], strlen((const char*)root[kv.key()]["type"]["resolvedName"]));
-  memcpy(m_radiobuttons->getParent(), kv.key().c_str(), strlen(kv.key().c_str()));
+  memcpy(m_radiobuttons->getParent(), txt, strlen(txt));
   memcpy(m_radiobuttons->getEvent(), (const char*)root[kv.key()]["props"]["event"], strlen((const char*)root[kv.key()]["props"]["event"]));
 
   // Store MGUI_object pointer in linked list
   radiobuttons.add(m_radiobuttons);
   lv_obj_set_user_data(radiobutton, m_radiobuttons);
-  lv_obj_add_event_cb(radiobutton, widget_cb, LV_EVENT_CLICKED, NULL);
+}
+
+/*Function for rendering radiobuttons*/
+void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
+  /* Create LVGL object */
+  lv_obj_t * radiobutton = lv_obj_create(lv_scr_act()); // Rename??
+
 
   // Check how many radiobuttons and names
   uint32_t amount = root[kv.key()]["props"]["amount"];
+
+  // Styling
+  lv_style_init(&style_radio);
+  lv_style_set_radius(&style_radio, LV_RADIUS_CIRCLE);
+  lv_style_init(&style_radio_chk);
+  lv_style_set_bg_img_src(&style_radio_chk, NULL);
 
   // Create container for the radiobuttons
   lv_obj_set_flex_flow(radiobutton, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_size(radiobutton, lv_pct(40), lv_pct(10 * amount + 18));
 
-  // Styling
-  lv_style_init(&style_radio);
-  lv_style_set_radius(&style_radio, LV_RADIUS_CIRCLE);
-
-  lv_style_init(&style_radio_chk);
-  lv_style_set_bg_img_src(&style_radio_chk, NULL);
-
-  lv_obj_add_style(radiobutton, &style_radio, LV_PART_INDICATOR);
-  lv_obj_add_style(radiobutton, &style_radio_chk, LV_PART_INDICATOR | LV_STATE_CHECKED);
+  // Event handling
+  lv_obj_add_event_cb(radiobutton, radio_event_handler, LV_EVENT_CLICKED, &active_index_1);
 
   // Correct colors
   lv_obj_set_style_bg_color(radiobutton, lv_color_make(root["ROOT"]["props"]["background"]["r"], root["ROOT"]["props"]["background"]["g"], root["ROOT"]["props"]["background"]["b"]), 0);
@@ -797,8 +825,11 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
 
   for(i = 0; i < amount; i++) {
       lv_snprintf(buf, sizeof(buf), root[kv.key()]["props"]["labelTexts"][i], (int)i + 1);
-      radiobutton_create(radiobutton, buf);
+      radiobutton_create(radiobutton, buf, root, kv);
   }
+
+  // Make the first checkbox checked
+  lv_obj_add_state(lv_obj_get_child(radiobutton, 1), LV_STATE_CHECKED);
 }
 
 /* Function for rendering a textfield */
