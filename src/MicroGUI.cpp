@@ -434,8 +434,13 @@ void mgui_render(char json[]) {
     else if(mgui_compare(type, "Divider")) {
       mgui_render_divider(kv, root);
     }
+    // If object is a Radiobutton
     else if(mgui_compare(type, "Radiobutton")) {
       mgui_render_radiobuttons(kv, root);
+    }
+    // If object is a Progressbar
+    else if(mgui_compare(type, "Progressbar")) {
+      mgui_render_progressbar(kv, root);
     }
   }
 
@@ -622,7 +627,7 @@ void mgui_update_doc() {
   for(int i = 0; i < radiobuttons.size(); i++) {
     root[radiobuttons.get(i)->getParent()]["props"]["state"] = (int)lv_obj_get_state(radiobuttons.get(i)->getObject()) & LV_STATE_CHECKED ? 1 : 0;
   }
-  // Add for progressbars
+  // TODO: add for progressbars
 
   serializeJson(root, document);
   doc.clear();
@@ -829,6 +834,9 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
 
 /* Function for rendering a progressbar */
 void mgui_render_progressbar(JsonPair kv, JsonObject root) {
+  static lv_style_t style_bg;
+  static lv_style_t style_indic;
+
   lv_obj_t * progressbar = lv_bar_create(lv_scr_act());
   // Create MGUI_object for newly created component
   MGUI_object * m_progressbar = new MGUI_object;
@@ -842,6 +850,13 @@ void mgui_render_progressbar(JsonPair kv, JsonObject root) {
 
   // Store the MGUI_object as user data
   lv_obj_set_user_data(progressbar, m_progressbar);
+
+  // Styling and placement 
+  lv_obj_set_size(progressbar, root[kv.key()]["props"]["size"], 20);
+  lv_obj_set_pos(progressbar, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+
+  // Value, temporary
+  lv_bar_set_value(progressbar, 70, LV_ANIM_ON);
 }
 
 /* Function for rendering a textfield */
