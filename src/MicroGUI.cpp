@@ -63,6 +63,10 @@ bool border_vis = false;
 uint8_t font_sizes[] = {14, 18, 24, 32, 40};
 const lv_font_t *font_list[] = {&lv_font_montserrat_14, &lv_font_montserrat_18, &lv_font_montserrat_24, &lv_font_montserrat_32, &lv_font_montserrat_40};
 
+/* Radiobuttons styling */
+static lv_style_t style_radio;
+static lv_style_t style_radio_chk;
+
 /* MicroGUI object class functions */
 
 MGUI_object::MGUI_object(lv_obj_t * obj, const char * obj_type, const char * obj_name, const char * obj_event) {
@@ -271,21 +275,40 @@ MGUI_event * mgui_run() {
 
 /* Callback function for all widget actions on the display, turn them into MGUI events */
 static void widget_cb(lv_event_t * e) {
+  uint32_t * active_id = (uint32_t*)lv_event_get_user_data(e);
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * object = lv_event_get_target(e);
+  lv_obj_t * parent = lv_event_get_current_target(e);
+  lv_obj_t * child = lv_obj_get_child(parent, *active_id);
 
+  if(object == parent) return;  // If container is clicked, do nothing
+  
   delete latest;
 
   int value;
   bool broadcast_event = true;        // Flag for choosing what events to broadcast, default is broadcast all
 
   // "Convert" LVGL event to MicroGUI event
-  if(code == LV_EVENT_CLICKED) {      // If button short-click, more events available from LVGL, implement later?
-    value = 1;
-    latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
+  if(code == LV_EVENT_CLICKED) {     // If button short-click, more events available from LVGL, implement later?
+    if(lv_obj_check_type(object, &lv_btn_class)) {
+      value = 1;
+      latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
                             ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
                             value);
-    broadcast_event = false;              // Sending button events is useless since there is no visual change on this event, however may be useful for something else??? Disabled for now..
+      broadcast_event = false;              // Sending button events is useless since there is no visual change on this event, however may be useful for something else??? Disabled for now..
+    }
+    else if(lv_obj_check_type(object, &lv_checkbox_class)) { // If radiobutton
+      lv_obj_clear_state(child, LV_STATE_CHECKED);   // Uncheck the previous radio button
+      lv_obj_add_state(object, LV_STATE_CHECKED);    // Check the current radio button
+      
+      value = (int)lv_obj_get_state(object);
+      
+      latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
+                              ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
+                              value);
+      
+      *active_id = lv_obj_get_index(object);
+    }
   }
   else if(code == LV_EVENT_VALUE_CHANGED) {
     if(lv_obj_check_type(object, &lv_slider_class)) {     // If slider
@@ -730,43 +753,6 @@ void mgui_render_checkbox(JsonPair kv, JsonObject root) {
   }
 }
 
-// Will get changed into existing event handler. 
-
-static void radio_event_handler(lv_event_t * e)
-{
-    uint32_t * active_id = (uint32_t*)lv_event_get_user_data(e);
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * cont = lv_event_get_current_target(e);
-    lv_obj_t * act_cb = lv_event_get_target(e);
-    lv_obj_t * old_cb = lv_obj_get_child(cont, *active_id);
-
-    /*Do nothing if the container was clicked*/
-    if(act_cb == cont) return;
-
-    delete latest;
-
-    lv_obj_clear_state(old_cb, LV_STATE_CHECKED);   /*Uncheck the previous radio button*/
-    lv_obj_add_state(act_cb, LV_STATE_CHECKED);     /*Check the current radio button*/
-
-    int value = (int)lv_obj_get_state(act_cb);
-    
-    latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(act_cb))->getEvent(), 
-                            ((MGUI_object*)lv_obj_get_user_data(act_cb))->getParent(), 
-                            value);
-
-    *active_id = lv_obj_get_index(act_cb);
-    new_event = true;
-}
-
-//////////////////////////////////////////////////////////
-/* Dessa ska inte vara här*/
-/* Eller kanske, jag tror inte det, men förmodligen inte*/
-//////////////////////////////////////////////////////////
-
-static lv_style_t style_radio;
-static lv_style_t style_radio_chk;
-static uint32_t active_index_1 = 1; // 1 is the first radibutton because we have the label. 
-
 void radiobutton_create(lv_obj_t * parent, const char * txt, JsonObject root, JsonPair kv){
   lv_obj_t * radiobutton = lv_checkbox_create(parent);    
   lv_checkbox_set_text(radiobutton, txt);
@@ -806,7 +792,8 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
   lv_obj_set_size(radiobutton, lv_pct(40), lv_pct(10 * amount + 18));
 
   // Event handling
-  lv_obj_add_event_cb(radiobutton, radio_event_handler, LV_EVENT_CLICKED, &active_index_1);
+  static uint32_t active_index_1 = 1; // 1 is the first radibutton because we have the label above. 
+  lv_obj_add_event_cb(radiobutton, widget_cb, LV_EVENT_CLICKED, &active_index_1);
 
   // Correct colors
   lv_obj_set_style_bg_color(radiobutton, lv_color_make(root["ROOT"]["props"]["background"]["r"], root["ROOT"]["props"]["background"]["g"], root["ROOT"]["props"]["background"]["b"]), 0);
@@ -827,7 +814,7 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
       lv_snprintf(buf, sizeof(buf), root[kv.key()]["props"]["labelTexts"][i], (int)i + 1);
       radiobutton_create(radiobutton, buf, root, kv);
   }
-
+  
   // Make the first checkbox checked
   lv_obj_add_state(lv_obj_get_child(radiobutton, 1), LV_STATE_CHECKED);
 }
