@@ -820,6 +820,7 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
   const char* text = root[kv.key()]["props"]["text"];
   lv_label_set_text(label, text);
 
+
   uint32_t i;
   char buf[32];
 
@@ -838,6 +839,7 @@ void mgui_render_progressbar(JsonPair kv, JsonObject root) {
   static lv_style_t style_indic;
 
   lv_obj_t * progressbar = lv_bar_create(lv_scr_act());
+
   // Create MGUI_object for newly created component
   MGUI_object * m_progressbar = new MGUI_object;
   m_progressbar->setObject(progressbar);
@@ -854,6 +856,12 @@ void mgui_render_progressbar(JsonPair kv, JsonObject root) {
   // Styling and placement 
   lv_obj_set_size(progressbar, root[kv.key()]["props"]["size"], 20);
   lv_obj_set_pos(progressbar, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+
+  // Label
+  lv_obj_t * label = lv_label_create(lv_scr_act());
+  const char* text = root[kv.key()]["props"]["text"];
+  lv_label_set_text(label, text);
+  lv_obj_align_to(label, progressbar, LV_ALIGN_OUT_TOP_MID, 0, 0);
 
   // Value, temporary
   lv_bar_set_value(progressbar, 70, LV_ANIM_ON);
