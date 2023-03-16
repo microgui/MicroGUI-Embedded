@@ -531,7 +531,7 @@ void mgui_set_value(const char * obj_name, int value, bool send) {
     else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
   } 
   else if(strcmp(object->getType(), "Progressbar") == 0) {
-    lv_slider_set_value(object->getObject(), value, LV_ANIM_OFF);
+    lv_bar_set_value(object->getObject(), value, LV_ANIM_ON);
   }
   else {
     Serial.print(F("[MicroGUI]: Could not change the value of "));
