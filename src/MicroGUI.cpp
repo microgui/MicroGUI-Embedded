@@ -282,9 +282,9 @@ static void widget_cb(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * object = lv_event_get_target(e);
   lv_obj_t * parent = lv_event_get_current_target(e);
-  lv_obj_t * child = lv_obj_get_child(parent, *active_id);
 
-  if(object == parent) return;  // If container is clicked, do nothing
+  // TODO: Remember to change when we add containers. 
+  if(object == parent && lv_obj_check_type(object, &lv_obj_class)) return;  // If container is clicked, do nothing
   
   delete latest;
 
@@ -301,6 +301,8 @@ static void widget_cb(lv_event_t * e) {
       broadcast_event = false;              // Sending button events is useless since there is no visual change on this event, however may be useful for something else??? Disabled for now..
     }
     else if(lv_obj_check_type(object, &lv_checkbox_class)) { // If radiobutton
+      lv_obj_t * child = lv_obj_get_child(parent, *active_id);
+
       lv_obj_clear_state(child, LV_STATE_CHECKED);   // Uncheck the previous radio button
       lv_obj_add_state(object, LV_STATE_CHECKED);    // Check the current radio button
       
