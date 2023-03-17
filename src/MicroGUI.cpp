@@ -50,6 +50,7 @@ LinkedList<MGUI_object*> textfields;
 LinkedList<MGUI_object*> dividers;
 LinkedList<MGUI_object*> radiobuttons;
 LinkedList<MGUI_object*> progressbars;
+LinkedList<MGUI_object*> arcs;
 
 /* For storing the initial json document internally */
 char document[20000];
@@ -147,6 +148,7 @@ void mgui_render_textfield(JsonPair kv, JsonObject root);
 void mgui_render_divider(JsonPair kv, JsonObject root);
 void mgui_render_radiobuttons(JsonPair kv, JsonObject root);
 void mgui_render_progressbar(JsonPair kv, JsonObject root);
+void mgui_render_arc(JsonPair kv, JsonObject root);
 
 
 /* Display function prototypes */
@@ -339,10 +341,18 @@ static void widget_cb(lv_event_t * e) {
     } 
   }
   else if(code == LV_EVENT_DRAW_PART_END){
-    value = lv_bar_get_value(object);
-    latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
-                            ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
-                            value);
+    if(lv_obj_check_type(object, &lv_bar_class)){
+      value = lv_bar_get_value(object);
+      latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
+                              ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
+                              value);
+    }
+    else if(lv_obj_check_type(object, &lv_arc_class)){
+      value = lv_arc_get_value(object);
+      latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
+                              ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
+                              value);
+    }
   }
   
   new_event = true;
@@ -384,6 +394,9 @@ void mgui_clear_lists() {
   for(int i = 0; i < progressbars.size(); i++) {
     delete progressbars.get(i);
   }
+  for(int i = 0; i < arcs.size(); i++) {
+    delete arcs.get(i);
+  }
 
   // Clears object references from lists
   buttons.clear();
@@ -394,6 +407,7 @@ void mgui_clear_lists() {
   dividers.clear();
   radiobuttons.clear();
   progressbars.clear();
+  arcs.clear();
 }
 
 /* Render MicroGUI from json */
@@ -451,6 +465,11 @@ void mgui_render(char json[]) {
     else if(mgui_compare(type, "Progressbar")) {
       mgui_render_progressbar(kv, root);
     }
+    // If object is an Arc
+    else if(mgui_compare(type, "CircularProgress")) {
+      mgui_render_arc(kv, root);
+    }
+
   }
 
   Serial.println("[MicroGUI]: GUI successfully rendered!");
@@ -510,6 +529,9 @@ void mgui_set_value(const char * obj_name, int value, bool send) {
   if(strcmp(object->getType(), "None") == 0) {
     object = mgui_find_object(obj_name, &progressbars);
   }
+  if(strcmp(object->getType(), "None") == 0) {
+    object = mgui_find_object(obj_name, &arcs);
+  }
 
   // Change its' value according to type
   if(strcmp(object->getType(), "Textfield") == 0) {
@@ -532,6 +554,9 @@ void mgui_set_value(const char * obj_name, int value, bool send) {
   } 
   else if(strcmp(object->getType(), "Progressbar") == 0) {
     lv_bar_set_value(object->getObject(), value, LV_ANIM_OFF);
+  }
+  else if(strcmp(object->getType(), "CircularProgress") == 0) {
+    lv_arc_set_value(object->getObject(), value);
   }
   else {
     Serial.print(F("[MicroGUI]: Could not change the value of "));
@@ -607,6 +632,9 @@ int mgui_get_value(const char * obj_name) {
   }
   if(strcmp(object->getType(), "Progressbar") == 0) {
     return lv_bar_get_value(object->getObject());
+  } 
+   if(strcmp(object->getType(), "CircularProgress") == 0) {
+    return lv_arc_get_value(object->getObject());
   }
   else {
     Serial.print(F("[MicroGUI]: Could not get the value of "));
@@ -647,6 +675,9 @@ void mgui_update_doc() {
   }
   for(int i = 0; i < progressbars.size(); i++) {
     root[progressbars.get(i)->getParent()]["props"]["value"] = lv_bar_get_value(progressbars.get(i)->getObject());
+  }
+  for(int i = 0; i < arcs.size(); i++) {
+    root[arcs.get(i)->getParent()]["props"]["value"] = lv_arc_get_value(arcs.get(i)->getObject());
   }
 
   serializeJson(root, document);
@@ -855,9 +886,8 @@ void mgui_render_radiobuttons(JsonPair kv, JsonObject root){
 
 /* Function for rendering a progressbar */
 void mgui_render_progressbar(JsonPair kv, JsonObject root) {
-  static lv_style_t style_bg;
-  static lv_style_t style_indic;
 
+  /* Create LVGL object */
   lv_obj_t * progressbar = lv_bar_create(lv_scr_act());
 
   // Create MGUI_object for newly created component
@@ -888,8 +918,53 @@ void mgui_render_progressbar(JsonPair kv, JsonObject root) {
   lv_obj_align_to(label, progressbar, LV_ALIGN_OUT_TOP_MID, 0, 0);
 
   // Value, temporary
-  lv_bar_set_value(progressbar, root[kv.key()]["props"]["value"], LV_ANIM_ON);
+  lv_bar_set_value(progressbar, root[kv.key()]["props"]["value"], LV_ANIM_OFF);
   
+}
+
+/* Function for rendering an arc */
+void mgui_render_arc(JsonPair kv, JsonObject root){
+  /* Create LVGL object */
+  lv_obj_t * arc = lv_arc_create(lv_scr_act());
+
+  // Create MGUI_object for newly created component
+  MGUI_object * m_arc = new MGUI_object;
+  m_arc->setObject(arc);
+  memcpy(m_arc->getType(), (const char*)root[kv.key()]["type"]["resolvedName"], strlen((const char*)root[kv.key()]["type"]["resolvedName"]));
+  memcpy(m_arc->getParent(), kv.key().c_str(), strlen(kv.key().c_str()));
+  memcpy(m_arc->getEvent(), (const char*)root[kv.key()]["props"]["event"], strlen((const char*)root[kv.key()]["props"]["event"]));
+  
+  // Store MGUI_object pointer in linked list
+  arcs.add(m_arc);
+
+  // Store the MGUI_object as user data
+  lv_obj_set_user_data(arc, m_arc);
+
+  // Event handling
+  lv_obj_add_event_cb(arc, widget_cb, LV_EVENT_DRAW_PART_END, NULL);
+
+  // Styling
+  lv_arc_set_rotation(arc, 270);
+  lv_arc_set_bg_angles(arc, 0, 360);
+  lv_obj_remove_style(arc, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
+  lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);  /*To not allow adjusting by click*/
+
+  // Size
+  int circumference = root[kv.key()]["props"]["size"];
+  int diameter = circumference / 3.14;
+  lv_obj_set_size(arc, diameter, diameter);
+
+  // Placement
+  lv_obj_set_pos(arc, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+
+  // Label
+  lv_obj_t * label = lv_label_create(lv_scr_act());
+  const char* text = root[kv.key()]["props"]["text"];
+  lv_label_set_text(label, text);
+  lv_obj_align_to(label, arc, LV_ALIGN_OUT_TOP_MID, 0, 0);
+
+  // Value, temporary
+  lv_arc_set_value(arc, root[kv.key()]["props"]["value"]);
 }
 
 /* Function for rendering a textfield */
