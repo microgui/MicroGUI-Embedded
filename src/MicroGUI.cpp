@@ -329,13 +329,6 @@ static void widget_cb(lv_event_t * e) {
                               ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
                               value);
     }
-    else if(lv_obj_check_type(object, &lv_bar_class)){
-      value = lv_bar_get_value(object);
-      Serial.println(value);
-      latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
-                              ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
-                              value);
-    }
   }
   else if(code == LV_EVENT_RELEASED) {
     if(lv_obj_check_type(object, &lv_slider_class)) {     // If slider
@@ -345,6 +338,13 @@ static void widget_cb(lv_event_t * e) {
                               value);
     } 
   }
+  else if(code == LV_EVENT_DRAW_PART_END){
+    value = lv_bar_get_value(object);
+    latest = new MGUI_event(((MGUI_object*)lv_obj_get_user_data(object))->getEvent(), 
+                            ((MGUI_object*)lv_obj_get_user_data(object))->getParent(), 
+                            value);
+  }
+  
   new_event = true;
 
   // Broadcast change if remote is initialized
@@ -531,7 +531,7 @@ void mgui_set_value(const char * obj_name, int value, bool send) {
     else lv_obj_clear_state(object->getObject(), LV_STATE_CHECKED);
   } 
   else if(strcmp(object->getType(), "Progressbar") == 0) {
-    lv_bar_set_value(object->getObject(), value, LV_ANIM_ON);
+    lv_bar_set_value(object->getObject(), value, LV_ANIM_OFF);
   }
   else {
     Serial.print(F("[MicroGUI]: Could not change the value of "));
@@ -646,9 +646,8 @@ void mgui_update_doc() {
     root[radiobuttons.get(i)->getParent()]["props"]["state"] = (int)lv_obj_get_state(radiobuttons.get(i)->getObject()) & LV_STATE_CHECKED ? 1 : 0;
   }
   for(int i = 0; i < progressbars.size(); i++) {
-    root[progressbars.get(i)->getParent()]["props"]["value"] = lv_slider_get_value(progressbars.get(i)->getObject());
+    root[progressbars.get(i)->getParent()]["props"]["value"] = lv_bar_get_value(progressbars.get(i)->getObject());
   }
-  // TODO: add for progressbars
 
   serializeJson(root, document);
   doc.clear();
@@ -876,7 +875,7 @@ void mgui_render_progressbar(JsonPair kv, JsonObject root) {
   lv_obj_set_user_data(progressbar, m_progressbar);
 
   // Event handling
-  lv_obj_add_event_cb(progressbar, widget_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  lv_obj_add_event_cb(progressbar, widget_cb, LV_EVENT_DRAW_PART_END, NULL);
 
   // Styling and placement 
   lv_obj_set_size(progressbar, root[kv.key()]["props"]["size"], 20);
