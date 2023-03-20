@@ -946,6 +946,8 @@ void mgui_render_arc(JsonPair kv, JsonObject root){
   // Styling
   lv_arc_set_rotation(arc, 270);
   lv_arc_set_bg_angles(arc, 0, 360);
+  lv_obj_set_style_arc_width(arc, 5, LV_PART_MAIN);       // TODO: Scale with size
+  lv_obj_set_style_arc_width(arc, 5, LV_PART_INDICATOR);  // TODO: Scale with size
   lv_obj_remove_style(arc, NULL, LV_PART_KNOB);   /*Be sure the knob is not displayed*/
   lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);  /*To not allow adjusting by click*/
 
