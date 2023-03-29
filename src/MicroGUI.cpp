@@ -917,7 +917,8 @@ void mgui_render_progressbar(JsonPair kv, JsonObject root) {
   lv_label_set_text(label, text);
   lv_obj_align_to(label, progressbar, LV_ALIGN_OUT_TOP_MID, 0, 0);
 
-  // Value, temporary
+  // Range and value
+  lv_bar_set_range(progressbar, root[kv.key()]["props"]["min"], root[kv.key()]["props"]["max"]);
   lv_bar_set_value(progressbar, root[kv.key()]["props"]["value"], LV_ANIM_OFF);
   
 }
@@ -965,7 +966,8 @@ void mgui_render_arc(JsonPair kv, JsonObject root){
   lv_label_set_text(label, text);
   lv_obj_align_to(label, arc, LV_ALIGN_OUT_TOP_MID, 0, 0);
 
-  // Value, temporary
+  // Range and value
+  lv_arc_set_range(arc, root[kv.key()]["props"]["min"], root[kv.key()]["props"]["max"]);
   lv_arc_set_value(arc, root[kv.key()]["props"]["value"]);
 }
 
