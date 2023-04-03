@@ -51,6 +51,7 @@ LinkedList<MGUI_object*> dividers;
 LinkedList<MGUI_object*> radiobuttons;
 LinkedList<MGUI_object*> progressbars;
 LinkedList<MGUI_object*> arcs;
+LinkedList<MGUI_object*> canvas_images;
 
 /* For storing the initial json document internally */
 char document[20000];
@@ -149,6 +150,7 @@ void mgui_render_divider(JsonPair kv, JsonObject root);
 void mgui_render_radiobuttons(JsonPair kv, JsonObject root);
 void mgui_render_progressbar(JsonPair kv, JsonObject root);
 void mgui_render_arc(JsonPair kv, JsonObject root);
+void mgui_render_canvas_img(JsonPair kv, JsonObject root);
 
 
 /* Display function prototypes */
@@ -397,6 +399,9 @@ void mgui_clear_lists() {
   for(int i = 0; i < arcs.size(); i++) {
     delete arcs.get(i);
   }
+  for(int i = 0; i < canvas_images.size(); i++) {
+    delete canvas_images.get(i);
+  }
 
   // Clears object references from lists
   buttons.clear();
@@ -408,6 +413,7 @@ void mgui_clear_lists() {
   radiobuttons.clear();
   progressbars.clear();
   arcs.clear();
+  canvas_images.clear();
 }
 
 /* Render MicroGUI from json */
@@ -468,6 +474,10 @@ void mgui_render(char json[]) {
     // If object is an Arc
     else if(mgui_compare(type, "CircularProgress")) {
       mgui_render_arc(kv, root);
+    }
+    // If object is a canvas
+    else if(mgui_compare(type, "CanvasObject")) {
+      mgui_render_canvas_img(kv, root);
     }
 
   }
@@ -969,6 +979,64 @@ void mgui_render_arc(JsonPair kv, JsonObject root){
   // Range and value
   lv_arc_set_range(arc, root[kv.key()]["props"]["min"], root[kv.key()]["props"]["max"]);
   lv_arc_set_value(arc, root[kv.key()]["props"]["value"]);
+}
+
+// Temporary canvas size, TODO: Check if this can be changed
+#define CANVAS_WIDTH  150
+#define CANVAS_HEIGHT  150
+
+/* Function for rendering a canvas with an image */
+void mgui_render_canvas_img(JsonPair kv, JsonObject root){
+  /* Create LVGL object */
+  lv_obj_t * canvas_img = lv_canvas_create(lv_scr_act());
+
+  // Create MGUI_object for newly created component
+  MGUI_object * m_canvas_img = new MGUI_object;
+  m_canvas_img->setObject(canvas_img);
+  memcpy(m_canvas_img->getType(), (const char*)root[kv.key()]["type"]["resolvedName"], strlen((const char*)root[kv.key()]["type"]["resolvedName"]));
+  memcpy(m_canvas_img->getParent(), kv.key().c_str(), strlen(kv.key().c_str()));
+  memcpy(m_canvas_img->getEvent(), (const char*)root[kv.key()]["props"]["event"], strlen((const char*)root[kv.key()]["props"]["event"]));
+  
+  // Store MGUI_object pointer in linked list
+  canvas_images.add(m_canvas_img);
+
+  // Store the MGUI_object as user data
+  lv_obj_set_user_data(canvas_img, m_canvas_img);
+
+  // Buffer for the canvas
+  static lv_color_t cbuf[LV_CANVAS_BUF_SIZE_TRUE_COLOR(50, 50)]; // What should the size be? Too large -> Can't build. Too small -> Crashes
+  lv_canvas_set_buffer(canvas_img, cbuf, CANVAS_WIDTH, CANVAS_HEIGHT, LV_IMG_CF_TRUE_COLOR);
+
+  // Styling
+  lv_canvas_fill_bg(canvas_img, lv_color_hex3(0xccc), LV_OPA_COVER);
+  lv_obj_set_pos(canvas_img, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+
+  lv_canvas_fill_bg(canvas_img, lv_palette_lighten(LV_PALETTE_GREY, 3), LV_OPA_COVER);
+
+  // Draw some text on the canvas, currently just crashes. 
+  lv_draw_label_dsc_t label_dsc;
+  lv_draw_label_dsc_init(&label_dsc);
+  label_dsc.color = lv_palette_main(LV_PALETTE_ORANGE);
+  lv_canvas_draw_text(canvas_img, 40, 20, 100, &label_dsc, "Some text on text canvas");
+
+  /*
+  Everything below was a try at getting an image to render. At the moment, it crashes the ESP32.
+  For this to work you need a "img_star.c" file, see example: https://github.com/lvgl/lvgl/blob/20e1ae21303b997998681e21472499bb3b2a12e5/examples/assets/img_star.c
+  */
+
+  // Create image
+  // LV_IMG_DECLARE(img_star);
+  // lv_obj_t * img = lv_img_create(lv_scr_act());
+  // lv_img_set_src(img, &MicroGUI_img);
+  // lv_obj_align(img, LV_ALIGN_CENTER, 0, -20);
+  // lv_obj_set_size(img, 200, 200);
+
+  // Draw image on canvas
+  // lv_draw_img_dsc_t dsc;
+  // lv_draw_img_dsc_init(&dsc);
+
+  // LV_IMG_DECLARE(img_star);
+  // lv_canvas_draw_img(canvas_img, 5, 5, &img_star, &dsc);
 }
 
 /* Function for rendering a textfield */
