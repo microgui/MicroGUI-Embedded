@@ -12,6 +12,8 @@
 #include <lvgl.h>
 #include "lv_conf.h"
 
+#include <asyncHTTPrequest.h>
+
 #include <ArduinoJson.h>
 #include <ArduinoJson.hpp>
 
@@ -88,5 +90,13 @@ void mgui_set_text(const char * obj_name, const char * text, bool send);
 void mgui_set_text(const char * obj_name, const char * text);
 
 int mgui_get_value(const char * obj_name);
+
+// API functions /* Incomplete as of now */
+
+void callAPI(char * url, int value);
+
+void sendRequest(char * url);
+
+void requestCB(void* optParm, asyncHTTPrequest *request, int readyState);
 
 #endif

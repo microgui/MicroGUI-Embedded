@@ -24,6 +24,9 @@
 #include <ArduinoJson.h>
 #include <ArduinoJson.hpp>
 
+#include <asyncHTTPrequest.h>   
+#include <Ticker.h>
+
 #include <string.h>
 
 
@@ -34,6 +37,14 @@ static uint16_t screenWidth;
 static uint16_t screenHeight;
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf[4800];
+
+/* Constants for API */
+
+asyncHTTPrequest request;       // Create a new request object
+                                
+int ticker_counter = 0; 
+// Create a list of ticker objects
+Ticker ticker[5];
 
 /* Variables/objects for MicroGUI events */
 static MGUI_event * default_event = new MGUI_event("Default", "None", 0);
@@ -986,6 +997,13 @@ void mgui_render_textfield(JsonPair kv, JsonObject root) {
 
   // Styling
   lv_obj_set_pos(textfield, root[kv.key()]["props"]["pageX"], root[kv.key()]["props"]["pageY"]);
+  // If root contains "url"
+  if (root[kv.key()]["props"].containsKey("URL"))
+  {
+    const char* responseText
+    
+  }
+  
   const char* text = root[kv.key()]["props"]["text"];
   lv_label_set_text(textfield, text);
   lv_obj_set_style_text_color(textfield, lv_color_make(root[kv.key()]["props"]["color"]["r"], root[kv.key()]["props"]["color"]["g"], root[kv.key()]["props"]["color"]["b"]), 0);
@@ -1094,6 +1112,38 @@ void mgui_hide_border() {
   if(border_vis) {
     lv_obj_del(border);
     border_vis = false;
+  }
+}
+
+/* Incomplete implementation of API-request functionality*/
+
+void sendRequest(char * url) {
+  if(request.readyState() == 0 || request.readyState() == 4){
+    request.open("GET", url);
+    request.send();
+  }
+}
+
+void requestCB(void* optParm, asyncHTTPrequest *request, int readyState) {
+  if(readyState == 4 && request->responseHTTPcode() == 200) {
+      Serial.println(request->responseText());
+      Serial.println();
+      request->setDebug(false);
+  }
+}
+
+// A function that given a string URL calls the API-endpoint
+void callAPI(char * url, int interval) {
+  if(ticker_counter < 5){
+    // Call the API
+    request.setDebug(true);       //To see the request in the serial monitor
+    request.onReadyStateChange(requestCB);
+    // Attach the function sendRequest to the ticker with the ticker index ticker_counter
+    ticker[ticker_counter].attach(interval, sendRequest, url); // Send request every interval seconds
+    ticker_counter++;
+  }
+  else{
+    Serial.println("Max amount of tickers reached");
   }
 }
 
